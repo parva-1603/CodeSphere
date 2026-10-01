@@ -1,6 +1,6 @@
 const { OpenAI } = require('openai');
 
-const key = "AQ.Ab8RN6Jm3ZDQ" + "LinjOQapc1Z2Iw1BinJIEnStaGpzSHU-ItTbEw";
+const key = "AQ.Ab8RN6LNwX0fDL" + "Tp4LV-jH8q8ks97xI-B0Z-gICPbVYCPzvQag";
 
 async function testKey() {
   const openai = new OpenAI({
