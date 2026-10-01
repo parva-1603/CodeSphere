@@ -19,7 +19,7 @@ const chatWithAI = async (req, res) => {
     Answer their questions and provide code suggestions. Keep it concise.`;
 
     const response = await openai.chat.completions.create({
-      model: "gemini-3.6-flash",
+      model: "gemini-1.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: message }
