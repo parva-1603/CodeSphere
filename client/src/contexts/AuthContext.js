@@ -114,9 +114,12 @@ export const AuthProvider = ({ children }) => {
     dbUser,
     login,
     register,
+    signup: register,
     loginWithGoogle,
+    googleSignIn: loginWithGoogle,
     logout,
-    getToken
+    getToken,
+    loading
   };
 
   return (
