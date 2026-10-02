@@ -1,0 +1,37 @@
+.app-status-bar {
+  height: 22px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-2);
+  z-index: var(--z-sticky);
+  font-size: var(--text-micro);
+  color: var(--text-secondary);
+}
+
+.status-bar-left, .status-bar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 100%;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 0 var(--space-1);
+  height: 100%;
+  border-radius: 2px;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.status-item:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.status-connected { color: var(--success); }
+.status-reconnecting { color: var(--warning); }
+.status-offline { color: var(--danger); }

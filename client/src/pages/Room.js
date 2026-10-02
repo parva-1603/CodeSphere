@@ -16,6 +16,7 @@ import AIPanel from '../components/panels/AIPanel';
 import GitHubPanel from '../components/panels/GitHubPanel';
 import PeoplePanel from '../components/panels/PeoplePanel';
 import SettingsPanel from '../components/panels/SettingsPanel';
+import AppShell from '../layouts/AppShell';
 
 const Room = () => {
   const { id: roomId } = useParams();
@@ -455,174 +456,51 @@ const Room = () => {
   if (!project) return <div className="h-screen flex items-center justify-center">Loading...</div>;
 
   return (
-    <div className="room-layout">
-      {/* Top Bar */}
-      <header className="page-header" style={{ justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Link to="/dashboard" className="icon-btn">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <h1 className="page-header-title">{project.name}</h1>
+    <AppShell
+      leftPanel={(activeLeftPanel) => (
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+              {activeLeftPanel === 'explorer' ? 'Explorer' : activeLeftPanel}
+            </span>
           </div>
-        </div>
-      </header>
-
-      {/* Main Workspace */}
-      <div className="room-workspace">
-        {/* Activity Bar */}
-        <div className="vscode-activity-bar">
-          <div className="activity-bar-top">
-            <button className="activity-btn active" title="Explorer"><FileCode size={24} /></button>
-            <button className="activity-btn" title="Search"><Search size={24} /></button>
-            <button className="activity-btn" title="Source Control"><GitBranch size={24} /></button>
-          </div>
-          <div className="activity-bar-bottom">
-            <button className="activity-btn" title="Settings"><Settings size={24} /></button>
-          </div>
-        </div>
-
-        {/* File Explorer */}
-        <div className="vscode-sidebar">
-          <div className="vscode-sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>EXPLORER</span>
-            <div style={{ display: 'flex', gap: '0.2rem' }}>
-              <button className="icon-btn" style={{ padding: '0.2rem', color: '#a1a1aa' }} onClick={createNewFile} title="New File">
-                <FilePlus size={14} />
-              </button>
-              <button className="icon-btn" style={{ padding: '0.2rem', color: '#a1a1aa' }} onClick={createNewFolder} title="New Folder">
-                <FolderPlus size={14} />
-              </button>
-              <button className="icon-btn" style={{ padding: '0.2rem', color: '#a1a1aa' }} onClick={() => folderInputRef.current?.click()} title="Open Folder">
-                <FolderOpen size={14} />
-              </button>
-              <button className="icon-btn" style={{ padding: '0.2rem', color: '#a1a1aa' }} onClick={() => fileInputRef.current?.click()} title="Upload File">
-                <Upload size={14} />
-              </button>
-            </div>
-            <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
-            <input type="file" webkitdirectory="" directory="" ref={folderInputRef} style={{ display: 'none' }} onChange={handleFolderUpload} />
-          </div>
-          <div className="vscode-sidebar-content">
-            <FileTree 
-              filesMapKeys={files} 
-              filesMap={docRef.current ? docRef.current.getMap('files') : null}
-              activeFile={activeFile}
-              setActiveFile={setActiveFile}
-              newItem={newItem}
-              setNewItem={setNewItem}
-              handleCreateItem={handleCreateItem}
-            />
-          </div>
-        </div>
-
-        {/* Editor Area */}
-        <div className="room-editor-container" style={{ display: 'flex', flexDirection: 'column' }}>
-          
-          {/* Editor Header */}
-          <div style={{ height: '35px', backgroundColor: '#1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', borderBottom: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#a1a1aa', fontSize: '0.85rem' }}>
-              <FileText size={14} />
-              {activeFile}
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="icon-btn" style={{ padding: '0.2rem', color: isRunning ? '#a1a1aa' : '#22c55e' }} onClick={runCode} disabled={isRunning} title="Run Code">
-                <Play size={16} />
-              </button>
-              <button className="icon-btn" style={{ padding: '0.2rem', color: '#a1a1aa' }} onClick={() => setIsTerminalOpen(!isTerminalOpen)} title="Toggle Terminal">
-                <TerminalSquare size={16} />
-              </button>
-            </div>
-          </div>
-
-          {/* Monaco Editor */}
-          <div style={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>
-            <Editor
-              height="100%"
-              language={getLanguageFromExtension(activeFile)}
-              theme="vs-dark"
-              onMount={handleEditorDidMount}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                fontFamily: "'JetBrains Mono', monospace",
-                padding: { top: 10 }
-              }}
-            />
-          </div>
-
-          {/* Terminal / Output Panel */}
-          {isTerminalOpen && (
-            <div style={{ height: `${terminalHeight}%`, backgroundColor: '#18181b', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-              
-              {/* Resize Handle */}
-              <div 
-                onMouseDown={startResize}
-                style={{ 
-                  height: '4px', 
-                  backgroundColor: 'var(--border-color)', 
-                  cursor: 'row-resize',
-                  position: 'absolute',
-                  top: '-2px',
-                  left: 0,
-                  right: 0,
-                  zIndex: 10,
-                }}
-                onMouseOver={(e) => e.target.style.backgroundColor = 'var(--primary)'}
-                onMouseOut={(e) => e.target.style.backgroundColor = 'var(--border-color)'}
-              />
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.25rem 1rem', borderBottom: '1px solid var(--border-color)', backgroundColor: '#1e1e1e' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#a1a1aa', textTransform: 'uppercase' }}>Terminal & Output</span>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button 
-                    className="icon-btn" 
-                    style={{ padding: '0.2rem', color: '#a1a1aa' }} 
-                    title="Copy Terminal Output"
-                    onClick={() => {
-                      if (!xtermRef.current) return;
-                      let text = '';
-                      // Get selected text if any, otherwise get all text
-                      if (xtermRef.current.hasSelection()) {
-                        text = xtermRef.current.getSelection();
-                      } else {
-                        const buffer = xtermRef.current.buffer.active;
-                        for (let i = 0; i < buffer.length; i++) {
-                          text += buffer.getLine(i)?.translateToString(true) + '\n';
-                        }
-                      }
-                      navigator.clipboard.writeText(text.trim());
-                    }}
-                  >
-                    <Copy size={14} />
-                  </button>
-                  <button className="icon-btn" style={{ padding: '0.2rem', color: '#a1a1aa' }} onClick={() => setIsTerminalOpen(false)}>
-                    <X size={14} />
-                  </button>
+          {activeLeftPanel === 'explorer' && (
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              <div style={{ padding: '0.5rem', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '12px' }}>FILES</span>
+                <div style={{ display: 'flex', gap: '0.2rem' }}>
+                  <button className="icon-btn" style={{ padding: '0.2rem', color: 'var(--text-tertiary)' }} onClick={createNewFile} title="New File"><FilePlus size={14} /></button>
+                  <button className="icon-btn" style={{ padding: '0.2rem', color: 'var(--text-tertiary)' }} onClick={createNewFolder} title="New Folder"><FolderPlus size={14} /></button>
+                  <button className="icon-btn" style={{ padding: '0.2rem', color: 'var(--text-tertiary)' }} onClick={() => folderInputRef.current?.click()} title="Open Folder"><FolderOpen size={14} /></button>
+                  <button className="icon-btn" style={{ padding: '0.2rem', color: 'var(--text-tertiary)' }} onClick={() => fileInputRef.current?.click()} title="Upload File"><Upload size={14} /></button>
                 </div>
+                <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
+                <input type="file" webkitdirectory="" directory="" ref={folderInputRef} style={{ display: 'none' }} onChange={handleFolderUpload} />
               </div>
-              
-              {/* xterm.js container */}
-              <div ref={terminalRef} style={{ flex: 1, overflow: 'hidden', padding: '0.5rem', backgroundColor: '#18181b' }} />
-              
+              <FileTree 
+                filesMapKeys={files} 
+                filesMap={docRef.current ? docRef.current.getMap('files') : null}
+                activeFile={activeFile}
+                setActiveFile={setActiveFile}
+                newItem={newItem}
+                setNewItem={setNewItem}
+                handleCreateItem={handleCreateItem}
+              />
             </div>
           )}
         </div>
-
-        {/* Right Panel */}
-        <div className="room-sidebar">
-          {/* Tabs */}
-          <div className="room-tab-bar">
-            <TabButton active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} icon={<MessageSquare />} />
-            <TabButton active={activeTab === 'call'} onClick={() => setActiveTab('call')} icon={<Video />} />
-            <TabButton active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<Cpu />} />
-            <TabButton active={activeTab === 'github'} onClick={() => setActiveTab('github')} icon={<GitBranch />} />
-            <TabButton active={activeTab === 'people'} onClick={() => setActiveTab('people')} icon={<Users />} />
-            <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<Settings />} />
+      )}
+      rightPanel={
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-surface)' }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', padding: '0.25rem' }}>
+            <button onClick={() => setActiveTab('chat')} style={{ padding: '0.25rem', color: activeTab === 'chat' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><MessageSquare size={16} /></button>
+            <button onClick={() => setActiveTab('call')} style={{ padding: '0.25rem', color: activeTab === 'call' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><Video size={16} /></button>
+            <button onClick={() => setActiveTab('ai')} style={{ padding: '0.25rem', color: activeTab === 'ai' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><Cpu size={16} /></button>
+            <button onClick={() => setActiveTab('github')} style={{ padding: '0.25rem', color: activeTab === 'github' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><GitBranch size={16} /></button>
+            <button onClick={() => setActiveTab('people')} style={{ padding: '0.25rem', color: activeTab === 'people' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><Users size={16} /></button>
+            <button onClick={() => setActiveTab('settings')} style={{ padding: '0.25rem', color: activeTab === 'settings' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><Settings size={16} /></button>
           </div>
-
-          {/* Panel Content */}
-          <div className="room-panel-content">
+          <div style={{ flex: 1, overflow: 'auto', padding: '0.5rem' }}>
             {activeTab === 'chat' && <ChatPanel roomId={roomId} />}
             {activeTab === 'call' && <CallPanel roomId={roomId} />}
             {activeTab === 'ai' && <AIPanel getEditorValue={getEditorValue} language={project.language} />}
@@ -631,23 +509,50 @@ const Room = () => {
             {activeTab === 'settings' && <SettingsPanel roomId={roomId} project={project} />}
           </div>
         </div>
+      }
+      bottomPanel={
+        isTerminalOpen ? (
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' }}>TERMINAL</span>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button onClick={() => setIsTerminalOpen(false)} style={{ color: 'var(--text-tertiary)' }}><X size={14} /></button>
+              </div>
+            </div>
+            <div ref={terminalRef} style={{ flex: 1, padding: '4px' }} />
+          </div>
+        ) : null
+      }
+    >
+      <div style={{ height: '35px', backgroundColor: 'var(--bg-active)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)', fontSize: '13px' }}>
+          <FileText size={14} />
+          {activeFile || 'No file selected'}
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button style={{ padding: '0.2rem', color: isRunning ? 'var(--text-tertiary)' : 'var(--success)' }} onClick={runCode} disabled={isRunning} title="Run Code">
+            <Play size={16} />
+          </button>
+          <button style={{ padding: '0.2rem', color: 'var(--text-tertiary)' }} onClick={() => setIsTerminalOpen(!isTerminalOpen)} title="Toggle Terminal">
+            <TerminalSquare size={16} />
+          </button>
+        </div>
       </div>
-
-      {/* Status Bar */}
-      <footer className="vscode-status-bar">
-        <div className="status-bar-section">
-          <span>{project.name}</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <GitBranch size={12} /> main
-          </span>
-        </div>
-        <div className="status-bar-section">
-          <span>{syncState === 'synced' ? 'Live sync' : 'Connecting...'}</span>
-          <span style={{ textTransform: 'uppercase' }}>{project.language}</span>
-          <span>Prettier</span>
-        </div>
-      </footer>
-    </div>
+      <div style={{ flex: 1, position: 'relative' }}>
+        <Editor
+          height="100%"
+          language={getLanguageFromExtension(activeFile)}
+          theme="vs-dark"
+          onMount={handleEditorDidMount}
+          options={{
+            minimap: { enabled: false },
+            fontSize: 14,
+            fontFamily: "'JetBrains Mono', monospace",
+            padding: { top: 10 }
+          }}
+        />
+      </div>
+    </AppShell>
   );
 };
 

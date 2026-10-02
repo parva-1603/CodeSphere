@@ -1,6 +1,6 @@
 const { OpenAI } = require('openai');
 
-const key = "AQ.Ab8RN6LNwX0fDLTp" + "4LV-jH8q8ks97xI-B0Z-gICPbVYCPzvQag";
+const key = process.env.GEMINI_API_KEY || "";
 
 async function testKey() {
   const openai = new OpenAI({

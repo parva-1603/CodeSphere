@@ -1,0 +1,182 @@
+.panel-thread-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.panel-thread-header {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--bg-elevated);
+}
+
+.panel-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.thread-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.thread-system-msg {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-micro);
+  color: var(--text-tertiary);
+  margin: 0 auto;
+}
+.thread-system-dot {
+  width: 4px;
+  height: 4px;
+  background-color: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+
+.thread-message {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.thread-message-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background-color: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.thread-message-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.thread-message-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.thread-message-author {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.thread-message-time {
+  font-size: var(--text-micro);
+  color: var(--text-tertiary);
+}
+
+.thread-message-body {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.thread-input-area {
+  padding: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  background-color: var(--bg-elevated);
+}
+
+.thread-input-form {
+  display: flex;
+  align-items: flex-end;
+  background-color: var(--bg-active);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  transition: border-color var(--transition-fast);
+}
+
+.thread-input-form:focus-within {
+  border-color: var(--accent);
+}
+
+.thread-input-field {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-2);
+  outline: none;
+  font-family: inherit;
+}
+.thread-input-field::placeholder {
+  color: var(--text-tertiary);
+}
+
+.thread-submit-btn {
+  background-color: var(--accent);
+  color: #fff;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+  margin: 2px;
+}
+.thread-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--border-strong);
+}
+.thread-submit-btn:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+/* AI Markdown Styles */
+.ai-markdown {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.ai-markdown p {
+  margin: 0 0 var(--space-2) 0;
+}
+.ai-markdown p:last-child {
+  margin-bottom: 0;
+}
+.ai-markdown pre {
+  background-color: #000;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  overflow-x: auto;
+  margin: var(--space-2) 0;
+}
+.ai-markdown code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--text-micro);
+  background-color: var(--bg-active);
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+.ai-markdown pre code {
+  background-color: transparent;
+  padding: 0;
+}

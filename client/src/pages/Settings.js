@@ -1,26 +1,73 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, GitBranch, X } from 'lucide-react';
+import { ArrowLeft, Sun, Moon, GitBranch, LogOut, User, Shield, X, ExternalLink, Terminal } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/Dialog';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { useToast } from '../components/ui/Toast';
+import Button from '../components/ui/Button';
 
+/* ── Mono Background ──────────────────────────────────────── */
+const MonoBg = () => (
+  <div className="mono-bg">
+    <div className="mono-bg-grid" />
+    <div className="mono-bg-noise" />
+    <div className="mono-bg-vignette" />
+  </div>
+);
+
+/* ── Toggle ───────────────────────────────────────────────── */
+const Toggle = ({ on, onToggle }) => (
+  <div
+    className={`toggle${on ? ' on' : ''}`}
+    onClick={onToggle}
+    role="switch"
+    aria-checked={on}
+    tabIndex={0}
+    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onToggle()}
+  >
+    <div className="toggle-track" />
+    <div className="toggle-thumb">
+      {on ? <Moon size={9} color="#0a0a0a" /> : <Sun size={9} color="#606060" />}
+    </div>
+  </div>
+);
+
+/* ── Section ──────────────────────────────────────────────── */
+const Section = ({ icon, label, danger, children }) => (
+  <div className={`settings-section${danger ? ' danger' : ''}`}>
+    <div className="settings-section-header">
+      <span className="settings-section-icon">{icon}</span>
+      <h2 className="settings-section-title">{label}</h2>
+    </div>
+    {children}
+  </div>
+);
+
+/* ── Row ──────────────────────────────────────────────────── */
+const Row = ({ label, desc, action }) => (
+  <div className="settings-row">
+    <div className="settings-row-info">
+      <p className="settings-row-label">{label}</p>
+      {desc && <p className="settings-row-desc">{desc}</p>}
+    </div>
+    {action}
+  </div>
+);
+
+/* ── Main ─────────────────────────────────────────────────── */
 const Settings = () => {
   const { dbUser, logout, getToken } = useAuth();
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [showGithubModal, setShowGithubModal] = useState(false);
   const [githubData, setGithubData] = useState({ username: '', pat: '' });
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  const { addToast } = useToast();
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
     localStorage.setItem('theme', theme);
   }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
 
   const handleConnectGithub = async (e) => {
     e.preventDefault();
@@ -33,17 +80,17 @@ const Settings = () => {
       });
       if (res.ok) {
         setShowGithubModal(false);
-        window.location.reload(); // Quick way to refresh dbUser globally
+        addToast({ title: 'GitHub connected', type: 'success' });
+        setTimeout(() => window.location.reload(), 1000);
       } else {
-        alert("Failed to connect GitHub");
+        addToast({ title: 'Error', description: 'Failed to connect GitHub', type: 'error' });
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      addToast({ title: 'Error', description: 'Network error', type: 'error' });
     }
   };
 
-  const handleDisconnectGithub = async () => {
-    if (!window.confirm("Are you sure you want to disconnect GitHub?")) return;
+  const performDisconnect = async () => {
     try {
       const token = getToken();
       const res = await fetch('http://localhost:5000/api/auth/github', {
@@ -51,149 +98,185 @@ const Settings = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        window.location.reload();
+        addToast({ title: 'Disconnected', type: 'success' });
+        setTimeout(() => window.location.reload(), 1000);
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      addToast({ title: 'Error', description: 'Failed to disconnect', type: 'error' });
     }
   };
 
+  const displayName = dbUser?.displayName || 'User';
+  const initial = displayName.charAt(0).toUpperCase();
+
   return (
-    <div className="page-container">
-      <header className="page-header">
-        <Link to="/dashboard" className="icon-btn" style={{ marginRight: '1rem' }}>
-          <ArrowLeft size={20} />
+    <div className="settings-layout">
+      <MonoBg />
+
+      {/* Header */}
+      <header className="settings-header">
+        <Link to="/dashboard" className="back-link">
+          <ArrowLeft size={12} /> Dashboard
         </Link>
-        <h1 className="page-header-title">Settings</h1>
+        <div style={{ width: 1, height: 16, background: '#222' }} />
+        <h1 className="settings-title">Settings</h1>
       </header>
 
-      <main className="page-content">
-        {/* Profile Section */}
-        <section className="settings-section">
-          <h2 className="settings-section-title">Profile</h2>
-          <div className="settings-row" style={{ justifyContent: 'flex-start' }}>
-            <div className="profile-avatar-lg">
-              {dbUser?.photoURL ? (
-                <img src={dbUser.photoURL} alt="Avatar" />
-              ) : (
-                <span>{dbUser?.displayName?.charAt(0).toUpperCase() || 'U'}</span>
-              )}
-            </div>
-            <div className="profile-info">
-              <h3>{dbUser?.displayName || 'User'}</h3>
-              <p>{dbUser?.email || 'No email'}</p>
-            </div>
-          </div>
-        </section>
+      {/* Main */}
+      <motion.main
+        className="settings-main"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {/* Section label */}
+        <div style={{
+          fontFamily: "'Space Mono', monospace",
+          fontSize: '0.65rem',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: '#404040',
+          marginBottom: '1rem',
+          paddingBottom: '0.5rem',
+          borderBottom: '1px solid #1a1a1a'
+        }}>
+          // preferences
+        </div>
 
-        {/* Appearance Section */}
-        <section className="settings-section">
-          <h2 className="settings-section-title">Appearance</h2>
-          <div className="settings-row">
-            <div>
-              <p className="settings-label">Theme Preference</p>
-              <p className="settings-desc">Toggle between light and dark mode</p>
-            </div>
-            <div 
-              className={`toggle-switch ${theme === 'dark' ? 'active' : ''}`}
-              onClick={toggleTheme}
-            >
-              <div className="toggle-switch-thumb">
-                {theme === 'dark' ? <Moon size={14} color="white" /> : <Sun size={14} color="white" />}
+        {/* Profile */}
+        <Section icon={<User size={12} />} label="Profile">
+          <Row
+            label={displayName}
+            desc={dbUser?.email || ''}
+            action={
+              <div className="profile-avatar-lg">
+                {dbUser?.photoURL
+                  ? <img src={dbUser.photoURL} alt="Avatar" />
+                  : <span>{initial}</span>
+                }
               </div>
-            </div>
-          </div>
-        </section>
+            }
+          />
+        </Section>
 
-        {/* GitHub Section */}
-        <section className="settings-section">
-          <h2 className="settings-section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><GitBranch size={24} /> GitHub Integration</h2>
-          <div className="settings-row">
-            <div>
-              <p className="settings-label">{dbUser?.githubUsername ? `Connected as ${dbUser.githubUsername}` : 'Not connected'}</p>
-              <p className="settings-desc">Link your GitHub account to pull/push code.</p>
-            </div>
-            {dbUser?.githubUsername ? (
-              <button onClick={handleDisconnectGithub} className="btn-small danger">
-                Disconnect
-              </button>
-            ) : (
-              <button onClick={() => setShowGithubModal(true)} className="btn-small">
-                Connect
-              </button>
-            )}
-          </div>
-        </section>
+        {/* Appearance */}
+        <Section icon={<Sun size={12} />} label="Appearance">
+          <Row
+            label="Dark Mode"
+            desc="Toggle light and dark interface theme."
+            action={
+              <Toggle on={theme === 'dark'} onToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
+            }
+          />
+        </Section>
 
-        {/* Account Section */}
-        <section className="settings-section" style={{ borderColor: 'rgba(248, 113, 113, 0.2)' }}>
-          <h2 className="settings-section-title danger">Account</h2>
-          <div className="settings-row">
-            <div>
-              <p className="settings-label">Sign Out</p>
-              <p className="settings-desc">Log out of this device.</p>
-            </div>
-            <button onClick={logout} className="btn-small danger">
-              Sign Out
-            </button>
-          </div>
-        </section>
-      </main>
+        {/* GitHub */}
+        <Section icon={<GitBranch size={12} />} label="GitHub Integration">
+          <Row
+            label={dbUser?.githubUsername ? `@${dbUser.githubUsername}` : 'Not connected'}
+            desc="Link your account to pull and push code from rooms."
+            action={
+              dbUser?.githubUsername ? (
+                <button
+                  className="github-btn"
+                  onClick={() => setShowDisconnectConfirm(true)}
+                  style={{ color: '#ff6060', borderColor: 'rgba(255,68,68,0.3)' }}
+                >
+                  <X size={12} /> Disconnect
+                </button>
+              ) : (
+                <button
+                  className="github-btn"
+                  onClick={() => setShowGithubModal(true)}
+                >
+                  <ExternalLink size={12} /> Connect
+                </button>
+              )
+            }
+          />
+        </Section>
+
+        {/* Danger zone */}
+        <div style={{
+          fontFamily: "'Space Mono', monospace",
+          fontSize: '0.65rem',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: '#404040',
+          margin: '2rem 0 1rem',
+          paddingBottom: '0.5rem',
+          borderBottom: '1px solid #1a1a1a'
+        }}>
+          // account
+        </div>
+
+        <Section icon={<Shield size={12} />} label="Danger Zone" danger>
+          <Row
+            label="Sign Out"
+            desc="Log out of CodeSphere on this device."
+            action={
+              <button
+                className="github-btn"
+                onClick={logout}
+                style={{ color: '#ff6060', borderColor: 'rgba(255,68,68,0.3)' }}
+              >
+                <LogOut size={12} /> Sign Out
+              </button>
+            }
+          />
+        </Section>
+      </motion.main>
 
       {/* GitHub Connect Modal */}
-      {showGithubModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 className="modal-title" style={{ marginBottom: 0 }}>Connect GitHub</h2>
-              <button onClick={() => setShowGithubModal(false)} className="icon-btn"><X size={20} /></button>
+      <Dialog open={showGithubModal} onOpenChange={setShowGithubModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Connect GitHub</DialogTitle>
+            <DialogDescription>
+              Provide a Personal Access Token (classic) with <code style={{ fontFamily: 'Space Mono', fontSize: '0.85em', background: '#1a1a1a', padding: '1px 5px', borderRadius: 2 }}>repo</code> scope.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleConnectGithub}>
+            <div className="form-group">
+              <label className="form-label">GitHub Username</label>
+              <input
+                type="text"
+                required
+                value={githubData.username}
+                onChange={e => setGithubData(d => ({ ...d, username: e.target.value }))}
+                className="form-input"
+                placeholder="octocat"
+              />
             </div>
-            <p style={{ fontSize: '0.875rem', color: '#a1a1aa', marginBottom: '1.5rem' }}>
-              To pull and push code, you need to provide a GitHub Personal Access Token (classic). 
-              Make sure to give it "repo" scope.
-            </p>
-            <form onSubmit={handleConnectGithub}>
-              <div className="modal-form-group">
-                <label className="modal-label">GitHub Username</label>
-                <input 
-                  type="text" 
-                  required
-                  value={githubData.username}
-                  onChange={(e) => setGithubData({...githubData, username: e.target.value})}
-                  className="modal-input"
-                  placeholder="e.g. octocat"
-                />
-              </div>
-              <div className="modal-form-group">
-                <label className="modal-label">Personal Access Token (PAT)</label>
-                <input 
-                  type="password" 
-                  required
-                  value={githubData.pat}
-                  onChange={(e) => setGithubData({...githubData, pat: e.target.value})}
-                  className="modal-input"
-                  placeholder="ghp_xxxxxxxxxxxx"
-                />
-              </div>
-              <div className="modal-actions" style={{ marginTop: '2rem' }}>
-                <button 
-                  type="button" 
-                  onClick={() => setShowGithubModal(false)}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="btn-glow"
-                >
-                  Connect
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Personal Access Token</label>
+              <input
+                type="password"
+                required
+                value={githubData.pat}
+                onChange={e => setGithubData(d => ({ ...d, pat: e.target.value }))}
+                className="form-input"
+                placeholder="ghp_xxxxxxxxxxxx"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setShowGithubModal(false)}>Cancel</Button>
+              <Button type="submit" variant="primary">Connect</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disconnect Confirm */}
+      <ConfirmModal
+        isOpen={showDisconnectConfirm}
+        onClose={() => setShowDisconnectConfirm(false)}
+        onConfirm={performDisconnect}
+        title="Disconnect GitHub?"
+        description="Your GitHub account will be unlinked. You can reconnect anytime."
+        confirmText="Disconnect"
+        isDanger
+      />
     </div>
   );
 };

@@ -1,0 +1,37 @@
+.app-activity-bar {
+  width: 48px;
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  z-index: var(--z-base);
+}
+
+.activity-bar-top, .activity-bar-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.activity-bar-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  position: relative;
+  transition: color var(--transition-fast);
+}
+
+.activity-bar-icon:hover {
+  color: var(--text-primary);
+}
+
+.activity-bar-icon.active {
+  color: var(--text-primary);
+}
+

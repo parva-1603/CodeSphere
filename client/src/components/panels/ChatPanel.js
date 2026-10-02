@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../../contexts/SocketContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Send } from 'lucide-react';
+import { motion } from 'framer-motion';
+import './ChatPanel.css';
 
 const ChatPanel = ({ roomId }) => {
   const socket = useSocket();
@@ -52,35 +54,72 @@ const ChatPanel = ({ roomId }) => {
     setInput('');
   };
 
+  const formatTime = (isoString) => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className="chat-messages">
-        {messages.map((m, i) => (
-          m.system ? (
-            <div key={i} className="chat-system-msg">{m.text}</div>
-          ) : (
-            <div key={i} className={`chat-bubble-wrap ${m.sender === dbUser?.displayName ? 'sent' : 'received'}`}>
-              <span className="chat-sender-name">{m.sender}</span>
-              <div className={`chat-bubble ${m.sender === dbUser?.displayName ? 'sent' : 'received'}`}>
+    <div className="panel-thread-container">
+      <div className="panel-thread-header">
+        <h3 className="panel-title">Chat</h3>
+      </div>
+      <div className="thread-messages">
+        {messages.map((m, i) => {
+          if (m.system) {
+            return (
+              <motion.div 
+                key={i} 
+                className="thread-system-msg"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              >
+                <span className="thread-system-dot" />
                 {m.text}
+              </motion.div>
+            );
+          }
+          return (
+            <motion.div 
+              key={i} 
+              className="thread-message"
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            >
+              <div className="thread-message-avatar">
+                {m.sender.charAt(0).toUpperCase()}
               </div>
-            </div>
-          )
-        ))}
+              <div className="thread-message-content">
+                <div className="thread-message-header">
+                  <span className="thread-message-author">{m.sender}</span>
+                  <span className="thread-message-time">{formatTime(m.timestamp)}</span>
+                </div>
+                <div className="thread-message-body">
+                  {m.text}
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
         <div ref={endRef} />
       </div>
-      <form onSubmit={sendMessage} className="chat-input-form">
-        <input 
-          type="text" 
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message..." 
-          className="chat-input"
-        />
-        <button type="submit" className="chat-send-btn">
-          <Send size={16} />
-        </button>
-      </form>
+      <div className="thread-input-area">
+        <form onSubmit={sendMessage} className="thread-input-form">
+          <input 
+            type="text" 
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Reply..." 
+            className="thread-input-field"
+          />
+          <button type="submit" className="thread-submit-btn" disabled={!input.trim()}>
+            <Send size={14} />
+          </button>
+        </form>
+      </div>
     </div>
   );
 };

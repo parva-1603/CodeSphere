@@ -1,0 +1,86 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: transparent; /* Wallpaper handles background */
+}
+
+.app-shell-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.app-shell-panels-wrapper {
+  flex: 1;
+  padding: var(--space-2);
+  display: flex;
+  overflow: hidden;
+}
+
+.app-shell-panels {
+  flex: 1;
+}
+
+.floating-tile {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-tile);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.panel-sidebar, .panel-right, .panel-bottom {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-editor-area {
+  background-color: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-tile);
+}
+
+/* Resize Handle as Gap */
+.resize-handle {
+  flex-basis: 8px;
+  position: relative;
+  background-color: transparent;
+  transition: background-color var(--transition-fast);
+}
+
+.resize-handle[data-panel-group-direction="horizontal"] {
+  width: 8px;
+  cursor: col-resize;
+}
+
+.resize-handle[data-panel-group-direction="vertical"] {
+  height: 8px;
+  cursor: row-resize;
+}
+
+.resize-handle-inner {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  right: 3px;
+  z-index: var(--z-sticky);
+  border-radius: var(--radius-full);
+  background-color: transparent;
+  transition: background-color var(--transition-fast);
+}
+
+.resize-handle[data-panel-group-direction="vertical"] .resize-handle-inner {
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  right: 0;
+}
+
+.resize-handle:hover .resize-handle-inner,
+.resize-handle[data-resize-handle-state="drag"] .resize-handle-inner {
+  background-color: var(--accent);
+}

@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Search, UserPlus, UserMinus } from 'lucide-react';
+import { ConfirmModal } from '../ui/ConfirmModal';
+import { useToast } from '../ui/Toast';
 
 const PeoplePanel = ({ roomId, project, setProject }) => {
   const { dbUser, getToken } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [collabToRemove, setCollabToRemove] = useState(null);
+  const { addToast } = useToast();
 
   const isOwner = project?.owner?._id === dbUser?._id;
 
@@ -44,21 +48,23 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
       if (res.ok) {
         const updatedProject = await res.json();
         setProject(updatedProject);
+        addToast({ title: 'Collaborator Added', type: 'success' });
         // Do NOT clear results so user can add multiple collaborators easily
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to add collaborator');
+        addToast({ title: 'Error', description: data.error || 'Failed to add collaborator', type: 'error' });
       }
     } catch (err) {
       console.error(err);
+      addToast({ title: 'Error', description: 'Failed to add collaborator', type: 'error' });
     }
   };
 
-  const removeCollaborator = async (userId) => {
-    if (!window.confirm("Are you sure you want to remove this collaborator?")) return;
+  const performRemoveCollaborator = async () => {
+    if (!collabToRemove) return;
     try {
       const token = getToken();
-      const res = await fetch(`http://localhost:5000/api/projects/${roomId}/collaborators/${userId}`, {
+      const res = await fetch(`http://localhost:5000/api/projects/${roomId}/collaborators/${collabToRemove}`, {
         method: 'DELETE',
         headers: { 
           Authorization: `Bearer ${token}` 
@@ -67,12 +73,14 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
       if (res.ok) {
         const updatedProject = await res.json();
         setProject(updatedProject);
+        addToast({ title: 'Collaborator Removed', type: 'success' });
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to remove collaborator');
+        addToast({ title: 'Error', description: data.error || 'Failed to remove collaborator', type: 'error' });
       }
     } catch (err) {
       console.error(err);
+      addToast({ title: 'Error', description: 'Failed to remove collaborator', type: 'error' });
     }
   };
 
@@ -84,7 +92,7 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
       
       {isOwner && (
         <div style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#a1a1aa', margin: '0 0 0.5rem 0' }}>Add Collaborator</h3>
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 0.5rem 0' }}>Add Collaborator</h3>
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem' }}>
             <input 
               type="text" 
@@ -92,7 +100,7 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search email or name..." 
               className="chat-input"
-              style={{ flex: 1, padding: '0.4rem', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--glass-bg)', color: '#fff' }}
+              style={{ flex: 1, padding: '0.4rem', borderRadius: '4px', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent', color: 'var(--text-primary)' }}
             />
             <button type="submit" className="chat-send-btn" disabled={searching}>
               <Search size={16} />
@@ -100,19 +108,19 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
           </form>
           
           {results.length > 0 && (
-            <div style={{ marginTop: '0.5rem', backgroundColor: 'var(--glass-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ marginTop: '0.5rem', backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: '4px', overflow: 'hidden' }}>
               {results.map(user => {
                 const isAlreadyCollab = allPeople.some(p => p._id === user._id);
                 return (
-                  <div key={user._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                  <div key={user._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <div className="collab-avatar" style={{ margin: 0, width: '1.5rem', height: '1.5rem', fontSize: '0.7rem' }}>
                         {user.photoURL ? <img src={user.photoURL} alt="Collab" /> : <span>{user.displayName?.charAt(0).toUpperCase()}</span>}
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: '#d4d4d8' }}>{user.displayName}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>{user.displayName}</div>
                     </div>
                     {!isAlreadyCollab && (
-                      <button onClick={() => addCollaborator(user._id)} className="icon-btn" style={{ padding: '0.2rem', color: 'var(--primary)' }}>
+                      <button onClick={() => addCollaborator(user._id)} className="icon-btn" style={{ padding: '0.2rem', color: 'var(--accent)' }}>
                         <UserPlus size={14} />
                       </button>
                     )}
@@ -124,7 +132,7 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
         </div>
       )}
 
-      <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#a1a1aa', margin: '0 0 1rem 0' }}>Project Members</h3>
+      <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 1rem 0' }}>Project Members</h3>
       <div className="people-list" style={{ flex: 1, overflowY: 'auto' }}>
         {allPeople.map(person => (
           <div key={person._id} className="people-item" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
@@ -132,16 +140,16 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
               {person.photoURL ? <img src={person.photoURL} alt="Avatar" /> : <span>{person.displayName?.charAt(0).toUpperCase()}</span>}
             </div>
             <div>
-              <div className="people-name" style={{ fontWeight: 500, color: '#f4f4f5' }}>
+              <div className="people-name" style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
                 {person.displayName} {person._id === dbUser?._id && '(You)'}
               </div>
-              <div className="people-status" style={{ fontSize: '0.75rem', color: '#a1a1aa' }}>
+              <div className="people-status" style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
                 {person._id === project.owner._id ? 'Owner' : 'Collaborator'}
               </div>
             </div>
             {isOwner && person._id !== project.owner._id && (
               <div style={{ marginLeft: 'auto' }}>
-                <button onClick={() => removeCollaborator(person._id)} className="icon-btn" style={{ padding: '0.2rem', color: '#f87171' }} title="Remove Collaborator">
+                <button onClick={() => setCollabToRemove(person._id)} className="icon-btn" style={{ padding: '0.2rem', color: 'var(--danger)' }} title="Remove Collaborator">
                   <UserMinus size={16} />
                 </button>
               </div>
@@ -149,6 +157,16 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
           </div>
         ))}
       </div>
+
+      <ConfirmModal 
+        isOpen={!!collabToRemove}
+        onClose={() => setCollabToRemove(null)}
+        onConfirm={performRemoveCollaborator}
+        title="Remove Collaborator?"
+        description="Are you sure you want to remove this collaborator from the project?"
+        confirmText="Remove"
+        isDanger={true}
+      />
     </div>
   );
 };

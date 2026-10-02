@@ -1,0 +1,156 @@
+:root {
+  /* ==========================================================================
+     LIVING CANVAS TOKENS (Midnight Ink - Dark Mode Default)
+     ========================================================================== */
+  --bg-app: #090B0F;
+  --bg-surface: #10141A;
+  --bg-elevated: #171C23;
+  --bg-hover: #1D232B;
+  --bg-active: #252C36;
+
+  --border-subtle: #1B2129;
+  --border: #2A323D;
+  --border-strong: #3C4756;
+
+  --text-primary: #EAEEF3;
+  --text-secondary: #A8B1BD;
+  --text-tertiary: #7E8895;
+  --text-disabled: #4D5560;
+
+  --accent: #3DDC97;
+  --accent-hover: #5BE8AB;
+  --accent-active: #2BC783;
+  --accent-fg: #04140C;
+  --accent-subtle: rgba(61, 220, 151, 0.14);
+  --accent-2: #FFB454;
+
+  --success: #3DDC97;
+  --warning: #FFB454;
+  --danger: #FF6B6B;
+  --info: #5CC8FF;
+
+  --colab-1: #FF7A90;
+  --colab-2: #FFB454;
+  --colab-3: #E8D44D;
+  --colab-4: #3DDC97;
+  --colab-5: #4FD1D9;
+  --colab-6: #6EA8FF;
+  --colab-7: #C79BFF;
+  --colab-8: #FF9F6B;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  --text-micro: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+
+  /* Z-Index */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-dropdown: 200;
+  --z-modal: 300;
+  --z-tooltip: 400;
+
+  /* Shadows (Neutral) */
+  --shadow-tile: 0 8px 24px rgba(0,0,0,0.25);
+  --shadow-glow: 0 0 0 2px var(--accent-subtle);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:root[data-theme='light'] {
+  --bg-app: #F4F2EC;
+  --bg-surface: #FBFAF7;
+  --bg-elevated: #FFFFFF;
+  --bg-hover: #EEEBE3;
+  --bg-active: #E6E2D8;
+
+  --border-subtle: #E9E5DB;
+  --border: #D9D4C7;
+  --border-strong: #C3BCAB;
+
+  --text-primary: #16181D;
+  --text-secondary: #4B515B;
+  --text-tertiary: #6D7480;
+  --text-disabled: #A8A99F;
+
+  --accent: #0B7A55;
+  --accent-hover: #096646;
+  --accent-active: #075437;
+  --accent-fg: #FFFFFF;
+  --accent-subtle: rgba(11, 122, 85, 0.10);
+  --accent-2: #C2620A;
+
+  --success: #0B7A55;
+  --warning: #B45309;
+  --danger: #C93434;
+  --info: #0B6FB8;
+
+  --colab-1: #D6336C;
+  --colab-2: #C2620A;
+  --colab-3: #8A7A00;
+  --colab-4: #0B7A55;
+  --colab-5: #0E8A93;
+  --colab-6: #2563C9;
+  --colab-7: #7A3FC0;
+  --colab-8: #C2410C;
+
+  --shadow-tile: 0 8px 24px rgba(20,24,29,0.10);
+}
+
+/* Chrome Background Utilities (Over Wallpaper) */
+.chrome-panel {
+  background-color: color-mix(in srgb, var(--bg-surface) 80%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent);
+}
+
+@supports not (backdrop-filter: blur(16px)) {
+  .chrome-panel {
+    background-color: var(--bg-surface);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .chrome-panel {
+    background-color: var(--bg-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Theme View Transition */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+}
