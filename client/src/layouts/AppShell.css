@@ -43,44 +43,52 @@
   box-shadow: var(--shadow-tile);
 }
 
-/* Resize Handle as Gap */
+/* Resize Handle */
 .resize-handle {
-  flex-basis: 8px;
   position: relative;
   background-color: transparent;
   transition: background-color var(--transition-fast);
+  user-select: none;
+  touch-action: none;
+  z-index: 10;
 }
 
+.resize-handle-horizontal,
 .resize-handle[data-panel-group-direction="horizontal"] {
-  width: 8px;
-  cursor: col-resize;
+  width: 10px;
+  margin: 0 -1px;
+  cursor: col-resize !important;
 }
 
+.resize-handle-vertical,
 .resize-handle[data-panel-group-direction="vertical"] {
-  height: 8px;
-  cursor: row-resize;
+  height: 10px;
+  margin: -1px 0;
+  cursor: row-resize !important;
 }
 
 .resize-handle-inner {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 4px;
+  bottom: 4px;
   left: 3px;
   right: 3px;
-  z-index: var(--z-sticky);
   border-radius: var(--radius-full);
   background-color: transparent;
   transition: background-color var(--transition-fast);
 }
 
+.resize-handle-vertical .resize-handle-inner,
 .resize-handle[data-panel-group-direction="vertical"] .resize-handle-inner {
   top: 3px;
   bottom: 3px;
-  left: 0;
-  right: 0;
+  left: 4px;
+  right: 4px;
 }
 
 .resize-handle:hover .resize-handle-inner,
-.resize-handle[data-resize-handle-state="drag"] .resize-handle-inner {
+.resize-handle[data-resize-handle-state="drag"] .resize-handle-inner,
+.resize-handle[data-panel-resize-handle-enabled="true"]:active .resize-handle-inner {
   background-color: var(--accent);
+  box-shadow: 0 0 6px rgba(168, 85, 247, 0.4);
 }

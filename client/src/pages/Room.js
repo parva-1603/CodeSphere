@@ -453,102 +453,341 @@ const Room = () => {
     });
   };
 
-  if (!project) return <div className="h-screen flex items-center justify-center">Loading...</div>;
+  const [activeLeftPanel, setActiveLeftPanel] = useState('explorer');
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  if (!project) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ width: '32px', height: '32px', border: '3px solid var(--border-subtle)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Loading CodeSphere Room...</span>
+      </div>
+    </div>
+  );
+
+  const filteredFiles = files.filter(f => f.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <AppShell
-      leftPanel={(activeLeftPanel) => (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              {activeLeftPanel === 'explorer' ? 'Explorer' : activeLeftPanel}
+      projectName={project?.name || 'CodeSphere Room'}
+      activeLeftPanel={activeLeftPanel}
+      onLeftPanelChange={setActiveLeftPanel}
+      connectionStatus={syncState === 'synced' ? 'connected' : syncState === 'connecting' ? 'reconnecting' : 'offline'}
+      leftPanel={(panelId) => (
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: 'var(--bg-surface)' }}>
+          {/* Panel Header */}
+          <div style={{ padding: '0.6rem 0.85rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+              {panelId === 'explorer' && 'Project Explorer'}
+              {panelId === 'search' && 'Search Files'}
+              {panelId === 'source' && 'Source Control (GitHub)'}
+              {panelId === 'ai' && 'AI Code Assistant'}
+              {panelId === 'chat' && 'Room Chat'}
+              {panelId === 'participants' && 'Collaborators'}
+              {panelId === 'settings' && 'Room Settings'}
             </span>
+            <button 
+              onClick={() => setActiveLeftPanel(null)} 
+              style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px', borderRadius: '4px' }}
+              title="Close Sidebar"
+            >
+              <X size={14} />
+            </button>
           </div>
-          {activeLeftPanel === 'explorer' && (
-            <div style={{ flex: 1, overflow: 'auto' }}>
-              <div style={{ padding: '0.5rem', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)' }}>
-                <span style={{ fontSize: '12px' }}>FILES</span>
-                <div style={{ display: 'flex', gap: '0.2rem' }}>
-                  <button className="icon-btn" style={{ padding: '0.2rem', color: 'var(--text-tertiary)' }} onClick={createNewFile} title="New File"><FilePlus size={14} /></button>
-                  <button className="icon-btn" style={{ padding: '0.2rem', color: 'var(--text-tertiary)' }} onClick={createNewFolder} title="New Folder"><FolderPlus size={14} /></button>
-                  <button className="icon-btn" style={{ padding: '0.2rem', color: 'var(--text-tertiary)' }} onClick={() => folderInputRef.current?.click()} title="Open Folder"><FolderOpen size={14} /></button>
-                  <button className="icon-btn" style={{ padding: '0.2rem', color: 'var(--text-tertiary)' }} onClick={() => fileInputRef.current?.click()} title="Upload File"><Upload size={14} /></button>
+
+          {/* Explorer Panel */}
+          {panelId === 'explorer' && (
+            <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '0.4rem 0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' }}>FILES</span>
+                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                  <button className="icon-btn" style={{ padding: '0.25rem', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '4px' }} onClick={createNewFile} title="New File"><FilePlus size={14} /></button>
+                  <button className="icon-btn" style={{ padding: '0.25rem', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '4px' }} onClick={createNewFolder} title="New Folder"><FolderPlus size={14} /></button>
+                  <button className="icon-btn" style={{ padding: '0.25rem', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '4px' }} onClick={() => folderInputRef.current?.click()} title="Open Folder"><FolderOpen size={14} /></button>
+                  <button className="icon-btn" style={{ padding: '0.25rem', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '4px' }} onClick={() => fileInputRef.current?.click()} title="Upload File"><Upload size={14} /></button>
                 </div>
                 <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
                 <input type="file" webkitdirectory="" directory="" ref={folderInputRef} style={{ display: 'none' }} onChange={handleFolderUpload} />
               </div>
-              <FileTree 
-                filesMapKeys={files} 
-                filesMap={docRef.current ? docRef.current.getMap('files') : null}
-                activeFile={activeFile}
-                setActiveFile={setActiveFile}
-                newItem={newItem}
-                setNewItem={setNewItem}
-                handleCreateItem={handleCreateItem}
-              />
+              <div style={{ flex: 1, overflow: 'auto', padding: '0.35rem' }}>
+                <FileTree 
+                  filesMapKeys={files} 
+                  filesMap={docRef.current ? docRef.current.getMap('files') : null}
+                  activeFile={activeFile}
+                  setActiveFile={setActiveFile}
+                  newItem={newItem}
+                  setNewItem={setNewItem}
+                  handleCreateItem={handleCreateItem}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Search Panel */}
+          {panelId === 'search' && (
+            <div style={{ flex: 1, overflow: 'auto', padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search files in project..." 
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem 0.55rem 2rem',
+                    backgroundColor: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-md)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    outline: 'none'
+                  }}
+                />
+                <Search size={14} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+              </div>
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>
+                  {filteredFiles.length} {filteredFiles.length === 1 ? 'FILE' : 'FILES'} FOUND
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {filteredFiles.map(filePath => (
+                    <button
+                      key={filePath}
+                      onClick={() => setActiveFile(filePath)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.4rem 0.6rem',
+                        background: activeFile === filePath ? 'var(--bg-active)' : 'transparent',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        color: activeFile === filePath ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        fontSize: '13px',
+                        width: '100%'
+                      }}
+                    >
+                      <FileCode size={14} style={{ flexShrink: 0, color: 'var(--accent)' }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{filePath}</span>
+                    </button>
+                  ))}
+                  {filteredFiles.length === 0 && (
+                    <div style={{ color: 'var(--text-tertiary)', fontSize: '12px', padding: '1rem 0', textAlign: 'center' }}>
+                      No matching files
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* GitHub / Source Control */}
+          {panelId === 'source' && (
+            <div style={{ flex: 1, overflow: 'auto', padding: '0.65rem' }}>
+              <GitHubPanel getEditorValue={getEditorValue} setEditorValue={setEditorValue} setMultipleFiles={setMultipleFiles} activeFile={activeFile} />
+            </div>
+          )}
+
+          {/* AI Panel */}
+          {panelId === 'ai' && (
+            <div style={{ flex: 1, overflow: 'auto', padding: '0.65rem' }}>
+              <AIPanel getEditorValue={getEditorValue} language={project.language} />
+            </div>
+          )}
+
+          {/* Chat Panel */}
+          {panelId === 'chat' && (
+            <div style={{ flex: 1, overflow: 'hidden', padding: '0.5rem' }}>
+              <ChatPanel roomId={roomId} />
+            </div>
+          )}
+
+          {/* Participants Panel */}
+          {panelId === 'participants' && (
+            <div style={{ flex: 1, overflow: 'auto', padding: '0.65rem' }}>
+              <PeoplePanel roomId={roomId} project={project} setProject={setProject} />
+            </div>
+          )}
+
+          {/* Settings Panel */}
+          {panelId === 'settings' && (
+            <div style={{ flex: 1, overflow: 'auto', padding: '0.65rem' }}>
+              <SettingsPanel roomId={roomId} project={project} />
             </div>
           )}
         </div>
       )}
       rightPanel={
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-surface)' }}>
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', padding: '0.25rem' }}>
-            <button onClick={() => setActiveTab('chat')} style={{ padding: '0.25rem', color: activeTab === 'chat' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><MessageSquare size={16} /></button>
-            <button onClick={() => setActiveTab('call')} style={{ padding: '0.25rem', color: activeTab === 'call' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><Video size={16} /></button>
-            <button onClick={() => setActiveTab('ai')} style={{ padding: '0.25rem', color: activeTab === 'ai' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><Cpu size={16} /></button>
-            <button onClick={() => setActiveTab('github')} style={{ padding: '0.25rem', color: activeTab === 'github' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><GitBranch size={16} /></button>
-            <button onClick={() => setActiveTab('people')} style={{ padding: '0.25rem', color: activeTab === 'people' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><Users size={16} /></button>
-            <button onClick={() => setActiveTab('settings')} style={{ padding: '0.25rem', color: activeTab === 'settings' ? 'var(--text-primary)' : 'var(--text-tertiary)' }}><Settings size={16} /></button>
+        isRightPanelOpen ? (
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-surface)', overflow: 'hidden' }}>
+            {/* Right Tabs Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', padding: '0.25rem 0.5rem', backgroundColor: 'var(--bg-subtle)' }}>
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                <button 
+                  onClick={() => setActiveTab('chat')} 
+                  style={{ padding: '0.4rem 0.6rem', border: 'none', background: activeTab === 'chat' ? 'var(--bg-elevated)' : 'transparent', borderRadius: 'var(--radius-sm)', color: activeTab === 'chat' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                  title="Chat"
+                >
+                  <MessageSquare size={14} /> <span>Chat</span>
+                </button>
+                <button 
+                  onClick={() => setActiveTab('call')} 
+                  style={{ padding: '0.4rem 0.6rem', border: 'none', background: activeTab === 'call' ? 'var(--bg-elevated)' : 'transparent', borderRadius: 'var(--radius-sm)', color: activeTab === 'call' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                  title="Video & Audio Call"
+                >
+                  <Video size={14} /> <span>Call</span>
+                </button>
+                <button 
+                  onClick={() => setActiveTab('ai')} 
+                  style={{ padding: '0.4rem 0.6rem', border: 'none', background: activeTab === 'ai' ? 'var(--bg-elevated)' : 'transparent', borderRadius: 'var(--radius-sm)', color: activeTab === 'ai' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                  title="AI Assistant"
+                >
+                  <Cpu size={14} /> <span>AI</span>
+                </button>
+                <button 
+                  onClick={() => setActiveTab('github')} 
+                  style={{ padding: '0.4rem 0.6rem', border: 'none', background: activeTab === 'github' ? 'var(--bg-elevated)' : 'transparent', borderRadius: 'var(--radius-sm)', color: activeTab === 'github' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                  title="GitHub"
+                >
+                  <GitBranch size={14} /> <span>Git</span>
+                </button>
+                <button 
+                  onClick={() => setActiveTab('people')} 
+                  style={{ padding: '0.4rem 0.6rem', border: 'none', background: activeTab === 'people' ? 'var(--bg-elevated)' : 'transparent', borderRadius: 'var(--radius-sm)', color: activeTab === 'people' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                  title="People"
+                >
+                  <Users size={14} />
+                </button>
+              </div>
+              <button 
+                onClick={() => setIsRightPanelOpen(false)} 
+                style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
+                title="Hide Right Panel"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            {/* Right Tab Content */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '0.5rem', display: 'flex', flexDirection: 'column' }}>
+              {activeTab === 'chat' && <ChatPanel roomId={roomId} />}
+              {activeTab === 'call' && <CallPanel roomId={roomId} />}
+              {activeTab === 'ai' && <AIPanel getEditorValue={getEditorValue} language={project.language} />}
+              {activeTab === 'github' && <GitHubPanel getEditorValue={getEditorValue} setEditorValue={setEditorValue} setMultipleFiles={setMultipleFiles} activeFile={activeFile} />}
+              {activeTab === 'people' && <PeoplePanel roomId={roomId} project={project} setProject={setProject} />}
+              {activeTab === 'settings' && <SettingsPanel roomId={roomId} project={project} />}
+            </div>
           </div>
-          <div style={{ flex: 1, overflow: 'auto', padding: '0.5rem' }}>
-            {activeTab === 'chat' && <ChatPanel roomId={roomId} />}
-            {activeTab === 'call' && <CallPanel roomId={roomId} />}
-            {activeTab === 'ai' && <AIPanel getEditorValue={getEditorValue} language={project.language} />}
-            {activeTab === 'github' && <GitHubPanel getEditorValue={getEditorValue} setEditorValue={setEditorValue} setMultipleFiles={setMultipleFiles} activeFile={activeFile} />}
-            {activeTab === 'people' && <PeoplePanel roomId={roomId} project={project} setProject={setProject} />}
-            {activeTab === 'settings' && <SettingsPanel roomId={roomId} project={project} />}
-          </div>
-        </div>
+        ) : null
       }
       bottomPanel={
         isTerminalOpen ? (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)' }}>TERMINAL</span>
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-surface)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <TerminalSquare size={13} style={{ color: 'var(--accent)' }} />
+                <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>INTEGRATED TERMINAL</span>
+              </div>
               <div style={{ display: 'flex', gap: '4px' }}>
-                <button onClick={() => setIsTerminalOpen(false)} style={{ color: 'var(--text-tertiary)' }}><X size={14} /></button>
+                <button onClick={() => setIsTerminalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px', borderRadius: '4px' }} title="Close Terminal">
+                  <X size={14} />
+                </button>
               </div>
             </div>
-            <div ref={terminalRef} style={{ flex: 1, padding: '4px' }} />
+            <div ref={terminalRef} style={{ flex: 1, padding: '4px', overflow: 'hidden' }} />
           </div>
         ) : null
       }
     >
-      <div style={{ height: '35px', backgroundColor: 'var(--bg-active)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', borderBottom: '1px solid var(--border-subtle)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)', fontSize: '13px' }}>
-          <FileText size={14} />
-          {activeFile || 'No file selected'}
+      {/* Editor Header Bar */}
+      <div style={{ height: '38px', backgroundColor: 'var(--bg-active)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0.85rem', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 500 }}>
+          <FileCode size={15} style={{ color: 'var(--accent)' }} />
+          <span>{activeFile || 'Select a file from Explorer'}</span>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button style={{ padding: '0.2rem', color: isRunning ? 'var(--text-tertiary)' : 'var(--success)' }} onClick={runCode} disabled={isRunning} title="Run Code">
-            <Play size={16} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <button 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px', 
+              padding: '0.3rem 0.65rem', 
+              backgroundColor: isRunning ? 'var(--bg-elevated)' : 'rgba(34, 197, 94, 0.15)', 
+              color: isRunning ? 'var(--text-tertiary)' : '#4ade80', 
+              border: '1px solid rgba(34, 197, 94, 0.3)', 
+              borderRadius: 'var(--radius-sm)', 
+              cursor: isRunning ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+              fontWeight: 600
+            }} 
+            onClick={runCode} 
+            disabled={isRunning} 
+            title="Run Code (Ctrl+Enter)"
+          >
+            <Play size={13} fill="#4ade80" />
+            <span>{isRunning ? 'Running...' : 'Run'}</span>
           </button>
-          <button style={{ padding: '0.2rem', color: 'var(--text-tertiary)' }} onClick={() => setIsTerminalOpen(!isTerminalOpen)} title="Toggle Terminal">
-            <TerminalSquare size={16} />
+
+          <button 
+            style={{ 
+              padding: '0.35rem 0.55rem', 
+              background: isTerminalOpen ? 'var(--bg-elevated)' : 'none', 
+              border: '1px solid var(--border-subtle)', 
+              borderRadius: 'var(--radius-sm)', 
+              color: isTerminalOpen ? 'var(--accent)' : 'var(--text-secondary)', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '12px'
+            }} 
+            onClick={() => setIsTerminalOpen(!isTerminalOpen)} 
+            title="Toggle Integrated Terminal"
+          >
+            <TerminalSquare size={14} />
+            <span>Terminal</span>
+          </button>
+
+          <button 
+            style={{ 
+              padding: '0.35rem 0.55rem', 
+              background: isRightPanelOpen ? 'var(--bg-elevated)' : 'none', 
+              border: '1px solid var(--border-subtle)', 
+              borderRadius: 'var(--radius-sm)', 
+              color: isRightPanelOpen ? 'var(--accent)' : 'var(--text-secondary)', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '12px'
+            }} 
+            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)} 
+            title="Toggle Right Side Dock"
+          >
+            <Users size={14} />
+            <span>Dock</span>
           </button>
         </div>
       </div>
-      <div style={{ flex: 1, position: 'relative' }}>
+
+      {/* Monaco Code Editor */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <Editor
           height="100%"
           language={getLanguageFromExtension(activeFile)}
           theme="vs-dark"
           onMount={handleEditorDidMount}
           options={{
-            minimap: { enabled: false },
+            minimap: { enabled: true, maxColumn: 80 },
             fontSize: 14,
-            fontFamily: "'JetBrains Mono', monospace",
-            padding: { top: 10 }
+            fontFamily: "'JetBrains Mono', 'Menlo', 'Monaco', monospace",
+            padding: { top: 12 },
+            lineNumbers: 'on',
+            roundedSelection: true,
+            scrollBeyondLastLine: false,
+            automaticLayout: true
           }}
         />
       </div>

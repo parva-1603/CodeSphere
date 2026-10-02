@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { useToast } from '../components/ui/Toast';
 import Button from '../components/ui/Button';
+import { API_BASE_URL } from '../config/api';
 
 /* ── Mono Background ──────────────────────────────────────── */
 const MonoBg = () => (
@@ -128,7 +129,7 @@ const Dashboard = () => {
     setLoading(true);
     try {
       const token = getToken();
-      const res = await fetch('http://localhost:5000/api/projects', {
+      const res = await fetch(`${API_BASE_URL}/api/projects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) setProjects(await res.json());
@@ -143,7 +144,7 @@ const Dashboard = () => {
     e.preventDefault();
     try {
       const token = getToken();
-      const res = await fetch('http://localhost:5000/api/projects', {
+      const res = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(newProject)
@@ -167,7 +168,7 @@ const Dashboard = () => {
     if (!projectToDelete) return;
     try {
       const token = getToken();
-      await fetch(`http://localhost:5000/api/projects/${projectToDelete._id}`, {
+      await fetch(`${API_BASE_URL}/api/projects/${projectToDelete._id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

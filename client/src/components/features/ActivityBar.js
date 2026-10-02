@@ -1,5 +1,5 @@
 import React from 'react';
-import { Files, Search, GitBranch, Users, MessageSquare, Settings } from 'lucide-react';
+import { Files, Search, GitBranch, Sparkles, Users, MessageSquare, Settings } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import './ActivityBar.css';
@@ -7,21 +7,28 @@ import './ActivityBar.css';
 const ActivityBar = ({ activePanel, onPanelChange }) => {
   const topIcons = [
     { id: 'explorer', icon: Files, label: 'Explorer' },
-    { id: 'search', icon: Search, label: 'Search' },
-    { id: 'source', icon: GitBranch, label: 'Source Control' },
-    { id: 'participants', icon: Users, label: 'Participants' },
-    { id: 'chat', icon: MessageSquare, label: 'Chat' },
+    { id: 'search', icon: Search, label: 'Search Files' },
+    { id: 'source', icon: GitBranch, label: 'Source Control (GitHub)' },
+    { id: 'ai', icon: Sparkles, label: 'AI Assistant' },
+    { id: 'chat', icon: MessageSquare, label: 'Room Chat' },
+    { id: 'participants', icon: Users, label: 'Collaborators' },
   ];
 
   const bottomIcons = [
-    { id: 'settings', icon: Settings, label: 'Settings' }
+    { id: 'settings', icon: Settings, label: 'Room Settings' }
   ];
+
+  const handleIconClick = (id) => {
+    if (onPanelChange) {
+      onPanelChange(activePanel === id ? null : id);
+    }
+  };
 
   const renderIcon = ({ id, icon: Icon, label }) => (
     <div
       key={id}
       className={clsx('activity-bar-icon', activePanel === id && 'active')}
-      onClick={() => onPanelChange(id)}
+      onClick={() => handleIconClick(id)}
       title={label}
       style={{ position: 'relative' }}
     >
