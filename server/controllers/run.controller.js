@@ -1,7 +1,33 @@
 const { exec } = require('child_process');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const os = require('os');
+
+const findCompiler = (lang) => {
+  const isC = lang === 'c';
+  const binaryName = isC ? 'gcc.exe' : 'g++.exe';
+
+  const candidates = [
+    `P:\\MinGW\\bin\\${binaryName}`,
+    `C:\\MinGW\\bin\\${binaryName}`,
+    `C:\\msys64\\mingw64\\bin\\${binaryName}`,
+    `C:\\mingw64\\bin\\${binaryName}`,
+    isC ? 'gcc' : 'g++'
+  ];
+
+  for (const cand of candidates) {
+    if (cand.includes('\\')) {
+      if (fsSync.existsSync(cand)) {
+        return { command: cand, dir: path.dirname(cand) };
+      }
+    } else {
+      return { command: cand, dir: '' };
+    }
+  }
+
+  return { command: isC ? 'gcc' : 'g++', dir: 'P:\\MinGW\\bin' };
+};
 
 const runCode = async (req, res) => {
   const { code, language } = req.body;
@@ -11,19 +37,23 @@ const runCode = async (req, res) => {
     const tmpDir = os.tmpdir();
     let ext = 'txt';
     let command = '';
+    let compilerDir = '';
     let isCompiled = false;
     let exeFilename = '';
 
-    if (language === 'javascript') {
+    const lang = (language || 'javascript').toLowerCase();
+
+    if (lang === 'javascript' || lang === 'js') {
       ext = 'js';
       command = 'node';
-    } else if (language === 'python') {
+    } else if (lang === 'python' || lang === 'py') {
       ext = 'py';
       command = 'python';
-    } else if (language === 'cpp' || language === 'c') {
-      ext = language === 'c' ? 'c' : 'cpp';
-      // Use absolute path without quotes to prevent cmd.exe from stripping quotes incorrectly
-      command = language === 'c' ? 'P:\\MinGW\\bin\\gcc' : 'P:\\MinGW\\bin\\g++';
+    } else if (lang === 'cpp' || lang === 'c' || lang === 'c++') {
+      ext = (lang === 'c') ? 'c' : 'cpp';
+      const compilerInfo = findCompiler(lang === 'c' ? 'c' : 'cpp');
+      command = compilerInfo.command;
+      compilerDir = compilerInfo.dir || 'P:\\MinGW\\bin';
       isCompiled = true;
     } else {
       return res.status(400).json({ error: `Language ${language} not supported for running` });
@@ -38,13 +68,25 @@ const runCode = async (req, res) => {
     let fullCommand = '';
     if (isCompiled) {
       exeFilename = path.join(tmpDir, `${baseName}.exe`);
-      fullCommand = `${command} "${filepath}" -o "${exeFilename}" && "${exeFilename}"`;
+      fullCommand = `"${command}" -static "${filepath}" -o "${exeFilename}" && "${exeFilename}"`;
     } else {
-      fullCommand = `${command} "${filepath}"`;
+      fullCommand = `"${command}" "${filepath}"`;
     }
 
-    exec(fullCommand, { timeout: 10000 }, async (error, stdout, stderr) => {
-      // Clean up file without logging annoying ENOENT errors
+    const customPath = compilerDir
+      ? `${compilerDir};${process.env.PATH || ''}`
+      : process.env.PATH;
+
+    const execOptions = {
+      timeout: 10000,
+      env: {
+        ...process.env,
+        PATH: customPath
+      }
+    };
+
+    exec(fullCommand, execOptions, async (error, stdout, stderr) => {
+      // Clean up temporary files
       await fs.unlink(filepath).catch(() => {});
       if (isCompiled) {
         await fs.unlink(exeFilename).catch(() => {});
@@ -53,9 +95,9 @@ const runCode = async (req, res) => {
       let output = '';
       if (stdout) output += stdout;
       if (stderr) output += stderr;
-      // Hide generic Node "Command failed" message if possible
+
       if (error && !stdout && !stderr) {
-        output += "Execution failed or compiler error. Check your code for syntax errors.";
+        output += `Execution failed (${error.message || 'Exit code ' + error.code}). Check your code for syntax errors or missing dependencies.`;
       }
 
       res.json({ output: output || '\r\n(No output)' });

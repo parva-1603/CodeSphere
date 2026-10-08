@@ -17,11 +17,13 @@ import GitHubPanel from '../components/panels/GitHubPanel';
 import PeoplePanel from '../components/panels/PeoplePanel';
 import SettingsPanel from '../components/panels/SettingsPanel';
 import AppShell from '../layouts/AppShell';
+import { API_BASE_URL, WS_BASE_URL } from '../config/api';
 
 const Room = () => {
   const { id: roomId } = useParams();
   const { currentUser, dbUser, getToken } = useAuth();
   const [project, setProject] = useState(null);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('chat');
   const [syncState, setSyncState] = useState('connecting');
   
@@ -110,7 +112,7 @@ const Room = () => {
       fitAddon.fit();
       xtermRef.current = term;
 
-      const ws = new WebSocket('ws://localhost:5000/shell');
+      const ws = new WebSocket(`${WS_BASE_URL}/shell`);
       wsRef.current = ws;
 
       ws.onmessage = (event) => {
@@ -181,16 +183,21 @@ const Room = () => {
   useEffect(() => {
     const fetchProject = async () => {
       try {
+        setError(null);
         const token = getToken();
-        const res = await fetch(`http://localhost:5000/api/projects/${roomId}`, {
+        const res = await fetch(`${API_BASE_URL}/api/projects/${roomId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
           const data = await res.json();
           setProject(data);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          setError(errData.error || `Project not found or access denied (Status ${res.status})`);
         }
       } catch (error) {
         console.error("Failed to fetch project", error);
+        setError("Failed to connect to server. Please ensure backend server is running.");
       }
     };
     if (currentUser) fetchProject();
@@ -201,7 +208,7 @@ const Room = () => {
 
     const doc = new Y.Doc();
     const provider = new WebsocketProvider(
-      'ws://localhost:5000/yjs',
+      `${WS_BASE_URL}/yjs`,
       roomId,
       doc
     );
@@ -389,7 +396,7 @@ const Room = () => {
         xtermRef.current?.write('\r\n\x1b[32m$ Executing script locally...\x1b[0m\r\n');
         
         const token = getToken();
-        const res = await fetch('http://localhost:5000/api/run', {
+        const res = await fetch(`${API_BASE_URL}/api/run`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -454,8 +461,21 @@ const Room = () => {
   };
 
   const [activeLeftPanel, setActiveLeftPanel] = useState('explorer');
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  if (error) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', textAlign: 'center', padding: '2rem', maxWidth: '400px' }}>
+        <div style={{ color: 'var(--danger)', fontSize: '2rem' }}>⚠️</div>
+        <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Failed to Load Room</h3>
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{error}</span>
+        <Link to="/dashboard" style={{ marginTop: '1rem', padding: '0.5rem 1rem', backgroundColor: 'var(--accent)', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontSize: '0.9rem' }}>
+          Back to Dashboard
+        </Link>
+      </div>
+    </div>
+  );
 
   if (!project) return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
@@ -477,8 +497,8 @@ const Room = () => {
       leftPanel={(panelId) => (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: 'var(--bg-surface)' }}>
           {/* Panel Header */}
-          <div style={{ padding: '0.6rem 0.85rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+          <div style={{ padding: '0.6rem 0.85rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, minWidth: 0 }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-secondary)', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, marginRight: '0.5rem' }}>
               {panelId === 'explorer' && 'Project Explorer'}
               {panelId === 'search' && 'Search Files'}
               {panelId === 'source' && 'Source Control (GitHub)'}
@@ -624,8 +644,8 @@ const Room = () => {
         isRightPanelOpen ? (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-surface)', overflow: 'hidden' }}>
             {/* Right Tabs Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', padding: '0.25rem 0.5rem', backgroundColor: 'var(--bg-subtle)' }}>
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', padding: '0.25rem 0.5rem', backgroundColor: 'var(--bg-subtle)', minWidth: 0 }}>
+              <div style={{ display: 'flex', gap: '0.25rem', overflowX: 'auto', flex: 1, scrollbarWidth: 'none' }}>
                 <button 
                   onClick={() => setActiveTab('chat')} 
                   style={{ padding: '0.4rem 0.6rem', border: 'none', background: activeTab === 'chat' ? 'var(--bg-elevated)' : 'transparent', borderRadius: 'var(--radius-sm)', color: activeTab === 'chat' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}

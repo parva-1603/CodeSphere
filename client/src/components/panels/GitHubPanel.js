@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { GitBranch, Download, Upload, FolderDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '../ui/Toast';
+import { API_BASE_URL } from '../../config/api';
 
 const GitHubPanel = ({ getEditorValue, setEditorValue, setMultipleFiles, activeFile }) => {
   const { dbUser, getToken } = useAuth();
@@ -62,7 +63,7 @@ const GitHubPanel = ({ getEditorValue, setEditorValue, setMultipleFiles, activeF
       }
       
       const token = getToken();
-      const res = await fetch('http://localhost:5000/api/github/pull-repo', {
+      const res = await fetch(`${API_BASE_URL}/api/github/pull-repo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ owner: parsed.owner, repo: parsed.repo, branch })
@@ -92,7 +93,7 @@ const GitHubPanel = ({ getEditorValue, setEditorValue, setMultipleFiles, activeF
       if (!parsed) return addToast({ title: 'Validation Error', description: "Could not parse repository.", type: 'warning' });
       
       const token = getToken();
-      const res = await fetch('http://localhost:5000/api/github/pull', {
+      const res = await fetch(`${API_BASE_URL}/api/github/pull`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ owner: parsed.owner, repo: parsed.repo, path: filePath, ref: branch })
@@ -123,7 +124,7 @@ const GitHubPanel = ({ getEditorValue, setEditorValue, setMultipleFiles, activeF
       
       const content = getEditorValue();
       const token = getToken();
-      const res = await fetch('http://localhost:5000/api/github/push', {
+      const res = await fetch(`${API_BASE_URL}/api/github/push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ owner: parsed.owner, repo: parsed.repo, path: filePath, branch, content })

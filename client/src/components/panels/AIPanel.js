@@ -4,6 +4,7 @@ import { Send, Bot, Copy, Check, TerminalSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion } from 'framer-motion';
 import './ChatPanel.css'; // Reusing the same threaded styles
+import { API_BASE_URL } from '../../config/api';
 
 const CopyButton = ({ text }) => {
   const [copied, setCopied] = useState(false);
@@ -57,7 +58,7 @@ const AIPanel = ({ getEditorValue, language }) => {
       const codeContext = getEditorValue();
       const token = getToken();
       
-      const res = await fetch('http://localhost:5000/api/ai/chat', {
+      const res = await fetch(`${API_BASE_URL}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { useToast } from '../components/ui/Toast';
 import Button from '../components/ui/Button';
+import NotificationMenu from '../components/ui/NotificationMenu';
 import { API_BASE_URL } from '../config/api';
 
 /* ── Mono Background ──────────────────────────────────────── */
@@ -157,10 +158,12 @@ const Dashboard = () => {
         setNewProject({ name: '', language: 'javascript' });
         navigate(`/room/${data._id}`);
       } else {
-        addToast({ title: 'Error', description: 'Failed to create project', type: 'error' });
+        const data = await res.json().catch(() => ({}));
+        addToast({ title: 'Error', description: data.error || 'Failed to create project', type: 'error' });
       }
-    } catch {
-      addToast({ title: 'Error', description: 'Network error', type: 'error' });
+    } catch (err) {
+      console.error('Create project error:', err);
+      addToast({ title: 'Error', description: err.message || 'Failed to connect to server', type: 'error' });
     }
   };
 
@@ -203,6 +206,7 @@ const Dashboard = () => {
           <span className="dashboard-logo-text">CodeSphere</span>
         </div>
         <div className="dashboard-nav-right">
+          <NotificationMenu onNotificationAction={fetchProjects} />
           <Link to="/settings" className="btn-icon" title="Settings"><Settings size={14} /></Link>
           <button className="btn-icon" onClick={handleLogout} title="Sign out"><LogOut size={14} /></button>
           <div className="user-avatar" title={displayName}>
@@ -280,7 +284,7 @@ const Dashboard = () => {
             <DialogDescription>Set up your collaborative coding room.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateProject}>
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Room Name</label>
               <input
                 type="text"
@@ -291,16 +295,6 @@ const Dashboard = () => {
                 placeholder="my-project"
                 autoFocus
               />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Language</label>
-              <select
-                value={newProject.language}
-                onChange={e => setNewProject(p => ({ ...p, language: e.target.value }))}
-                className="form-input"
-              >
-                {LANGS.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
             </div>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setShowModal(false)}>Cancel</Button>

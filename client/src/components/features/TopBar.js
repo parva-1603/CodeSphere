@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowLeft, Users, Share, Moon, Sun, Monitor } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
+import NotificationMenu from '../ui/NotificationMenu';
 import { Dropdown, DropdownTrigger, DropdownContent, DropdownItem } from '../ui/Dropdown';
 import './TopBar.css';
 
@@ -28,6 +29,7 @@ const TopBar = ({ projectName = 'Untitled Project' }) => {
       </div>
 
       <div className="topbar-right">
+        <NotificationMenu />
         <div className="topbar-avatars">
           <div className="avatar" style={{ backgroundColor: 'var(--colab-1)' }}>P</div>
           <div className="avatar" style={{ backgroundColor: 'var(--colab-2)' }}>A</div>

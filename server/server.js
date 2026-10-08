@@ -39,6 +39,7 @@ app.use('/api/ai', require('./routes/ai.routes'));
 app.use('/api/github', require('./routes/github.routes'));
 app.use('/api/terminal', require('./routes/terminal.routes'));
 app.use('/api/run', require('./routes/run.routes'));
+app.use('/api/notifications', require('./routes/notification.routes'));
 
 // Serve React static build files if they exist (Single-Port Production Mode)
 const buildPath = path.join(__dirname, '../client/build');

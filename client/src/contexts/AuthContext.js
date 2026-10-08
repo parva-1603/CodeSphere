@@ -102,6 +102,26 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateProfile = async (displayName, photoURL) => {
+    const token = getToken();
+    const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}` 
+      },
+      body: JSON.stringify({ displayName, photoURL })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = new Error(data.error || 'Failed to update profile');
+      err.suggestions = data.suggestions;
+      throw err;
+    }
+    setDbUser(data);
+    return data;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setCurrentUser(null);
@@ -118,6 +138,7 @@ export const AuthProvider = ({ children }) => {
     signup: register,
     loginWithGoogle,
     googleSignIn: loginWithGoogle,
+    updateProfile,
     logout,
     getToken,
     loading

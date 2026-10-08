@@ -6,8 +6,8 @@ import StatusBar from '../components/features/StatusBar';
 import LiveWallpaper from '../components/ui/LiveWallpaper';
 import './AppShell.css';
 
-const ResizeHandle = ({ direction = 'horizontal' }) => (
-  <PanelResizeHandle className={`resize-handle resize-handle-${direction}`}>
+const ResizeHandle = () => (
+  <PanelResizeHandle className="resize-handle">
     <div className="resize-handle-inner" />
   </PanelResizeHandle>
 );
@@ -38,38 +38,38 @@ const AppShell = ({
         <ActivityBar activePanel={activeLeftPanel} onPanelChange={handlePanelChange} />
         
         <div className="app-shell-panels-wrapper">
-          <PanelGroup direction="horizontal" className="app-shell-panels" autoSaveId="codesphere-layout-h">
+          <PanelGroup orientation="horizontal" className="app-shell-panels">
             {/* Left Sidebar */}
             {leftPanel && activeLeftPanel && (
               <>
                 <Panel 
-                  defaultSize={22} 
-                  minSize={12} 
-                  maxSize={65} 
-                  collapsible={true}
+                  id="left-sidebar"
+                  defaultSize="22%" 
+                  minSize="15%" 
+                  maxSize="40%" 
                   className="panel-sidebar chrome-panel floating-tile"
                 >
                   {leftPanel(activeLeftPanel)}
                 </Panel>
-                <ResizeHandle direction="horizontal" />
+                <ResizeHandle />
               </>
             )}
 
             {/* Center (Editor) & Bottom Panel */}
-            <Panel minSize={20} className="panel-center">
-              <PanelGroup direction="vertical" autoSaveId="codesphere-layout-v">
-                <Panel minSize={15} className="panel-editor-area floating-tile">
+            <Panel id="center-panel" minSize="30%" className="panel-center">
+              <PanelGroup orientation="vertical" className="panel-center-group">
+                <Panel id="editor-area" minSize="20%" className="panel-editor-area floating-tile">
                   {children}
                 </Panel>
                 
                 {bottomPanel && (
                   <>
-                    <ResizeHandle direction="vertical" />
+                    <ResizeHandle />
                     <Panel 
-                      defaultSize={32} 
-                      minSize={10} 
-                      maxSize={85} 
-                      collapsible={true}
+                      id="bottom-terminal"
+                      defaultSize="35%" 
+                      minSize="15%" 
+                      maxSize="70%" 
                       className="panel-bottom chrome-panel floating-tile"
                     >
                       {bottomPanel}
@@ -82,12 +82,12 @@ const AppShell = ({
             {/* Right Sidebar */}
             {rightPanel && (
               <>
-                <ResizeHandle direction="horizontal" />
+                <ResizeHandle />
                 <Panel 
-                  defaultSize={28} 
-                  minSize={12} 
-                  maxSize={70} 
-                  collapsible={true}
+                  id="right-dock"
+                  defaultSize="25%" 
+                  minSize="18%" 
+                  maxSize="45%" 
                   className="panel-right chrome-panel floating-tile"
                 >
                   {rightPanel}

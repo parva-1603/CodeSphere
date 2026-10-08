@@ -5,6 +5,7 @@ import { Trash2, AlertTriangle } from 'lucide-react';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { useToast } from '../ui/Toast';
 import Button from '../ui/Button';
+import { API_BASE_URL } from '../../config/api';
 
 const SettingsPanel = ({ roomId, project }) => {
   const { dbUser, getToken } = useAuth();
@@ -17,7 +18,7 @@ const SettingsPanel = ({ roomId, project }) => {
   const performDeleteProject = async () => {
     try {
       const token = getToken();
-      const res = await fetch(`http://localhost:5000/api/projects/${roomId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${roomId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

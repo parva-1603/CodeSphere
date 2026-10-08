@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 const createProject = async (req, res) => {
   try {
@@ -77,22 +78,47 @@ const addCollaborator = async (req, res) => {
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     
+    // Only owner can send/resend invites
     if (project.owner.toString() !== req.user.uid) {
-      return res.status(403).json({ error: 'Only the project owner can add collaborators' });
+      return res.status(403).json({ error: 'Only the project owner can invite collaborators' });
     }
     
-    if (project.collaborators.includes(userId)) {
+    if (project.collaborators.some(id => id.toString() === userId)) {
       return res.status(400).json({ error: 'User is already a collaborator' });
     }
-    
-    project.collaborators.push(userId);
-    await project.save();
+
+    // Check if an invitation notification exists
+    let notification = await Notification.findOne({
+      recipient: userId,
+      project: project._id
+    });
+
+    if (notification) {
+      if (notification.status === 'pending') {
+        return res.status(400).json({ error: 'Invite is already pending for this user' });
+      } else if (notification.status === 'accepted') {
+        return res.status(400).json({ error: 'User is already a collaborator' });
+      } else if (notification.status === 'rejected') {
+        // If rejected, ONLY the owner (which req.user.uid is) can resend!
+        notification.status = 'pending';
+        notification.sender = req.user.uid;
+        await notification.save();
+      }
+    } else {
+      notification = new Notification({
+        recipient: userId,
+        sender: req.user.uid,
+        project: project._id,
+        status: 'pending'
+      });
+      await notification.save();
+    }
     
     const updatedProject = await Project.findById(req.params.id)
       .populate('owner', 'displayName photoURL email')
       .populate('collaborators', 'displayName photoURL email');
       
-    res.json(updatedProject);
+    res.json({ project: updatedProject, message: 'Invitation sent' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

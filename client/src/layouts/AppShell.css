@@ -11,6 +11,7 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
 }
 
 .app-shell-panels-wrapper {
@@ -18,10 +19,14 @@
   padding: var(--space-2);
   display: flex;
   overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 
 .app-shell-panels {
   flex: 1;
+  width: 100%;
+  height: 100%;
 }
 
 .floating-tile {
@@ -31,15 +36,23 @@
   overflow: hidden;
 }
 
-.panel-sidebar, .panel-right, .panel-bottom {
+.panel-sidebar, .panel-right, .panel-bottom, .panel-center, .panel-editor-area {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.panel-center-group {
+  width: 100%;
+  height: 100%;
 }
 
 .panel-editor-area {
   background-color: var(--bg-elevated);
-  display: flex;
-  flex-direction: column;
   box-shadow: var(--shadow-tile);
 }
 
@@ -51,19 +64,20 @@
   user-select: none;
   touch-action: none;
   z-index: 10;
+  flex-shrink: 0;
 }
 
 .resize-handle-horizontal,
 .resize-handle[data-panel-group-direction="horizontal"] {
-  width: 10px;
-  margin: 0 -1px;
+  width: 8px;
+  margin: 0 2px;
   cursor: col-resize !important;
 }
 
 .resize-handle-vertical,
 .resize-handle[data-panel-group-direction="vertical"] {
-  height: 10px;
-  margin: -1px 0;
+  height: 8px;
+  margin: 2px 0;
   cursor: row-resize !important;
 }
 
@@ -71,8 +85,8 @@
   position: absolute;
   top: 4px;
   bottom: 4px;
-  left: 3px;
-  right: 3px;
+  left: 2px;
+  right: 2px;
   border-radius: var(--radius-full);
   background-color: transparent;
   transition: background-color var(--transition-fast);
@@ -80,8 +94,8 @@
 
 .resize-handle-vertical .resize-handle-inner,
 .resize-handle[data-panel-group-direction="vertical"] .resize-handle-inner {
-  top: 3px;
-  bottom: 3px;
+  top: 2px;
+  bottom: 2px;
   left: 4px;
   right: 4px;
 }
