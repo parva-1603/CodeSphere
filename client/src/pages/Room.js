@@ -272,15 +272,19 @@ const Room = () => {
     };
   }, [project, roomId, dbUser]);
 
-  const activeFileRef = useRef(activeFile);
-  useEffect(() => {
-    activeFileRef.current = activeFile;
-  }, [activeFile]);
-
   const bindEditorTimeout = useRef(null);
 
-  const bindEditor = (filename) => {
-    if (!filename || !editorRef.current || !docRef.current || !providerRef.current) return;
+  const bindEditor = () => {
+    if (!editorRef.current || !docRef.current || !providerRef.current) return;
+
+    const model = editorRef.current.getModel();
+    if (!model || model.isDisposed()) return;
+    
+    // Extract filename from model.uri.path (e.g. "/main.js" -> "main.js")
+    let filename = model.uri.path;
+    if (filename.startsWith('/')) filename = filename.substring(1);
+    
+    if (!filename || filename === 'default') return;
 
     // Debounce rapid re-binds (e.g. when remote updates arrive during file switch)
     if (bindEditorTimeout.current) clearTimeout(bindEditorTimeout.current);
@@ -290,34 +294,27 @@ const Room = () => {
           bindingRef.current.destroy();
           bindingRef.current = null;
         }
-        if (!editorRef.current || !docRef.current || !providerRef.current) return;
+        if (model.isDisposed()) return;
+        
         const type = docRef.current.getText(filename);
-        const model = editorRef.current.getModel();
-        if (model && !model.isDisposed()) {
-          bindingRef.current = new MonacoBinding(
-            type,
-            model,
-            new Set([editorRef.current]),
-            providerRef.current.awareness
-          );
-        }
+        bindingRef.current = new MonacoBinding(
+          type,
+          model,
+          new Set([editorRef.current]),
+          providerRef.current.awareness
+        );
       } catch (err) {
         console.warn('[CodeSphere] MonacoBinding error (harmless during sync):', err.message);
       }
     }, 50);
   };
 
-  // Bind Editor whenever activeFile changes
-  useEffect(() => {
-    bindEditor(activeFile);
-  }, [activeFile]);
-
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
-    bindEditor(activeFileRef.current);
+    bindEditor();
 
     editor.onDidChangeModel(() => {
-      bindEditor(activeFileRef.current);
+      bindEditor();
     });
   };
 
