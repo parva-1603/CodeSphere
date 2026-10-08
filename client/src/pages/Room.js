@@ -494,7 +494,7 @@ const Room = () => {
     const filesMap = docRef.current.getMap('files');
     filesArray.forEach(file => {
       if (!filesMap.has(file.path)) {
-        filesMap.set(file.path, file.path);
+        filesMap.set(file.path, { type: 'file' });
       }
       const ytext = docRef.current.getText(file.path);
       ytext.delete(0, ytext.length);
