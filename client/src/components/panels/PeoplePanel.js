@@ -24,8 +24,8 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        const data = await res.json();
-        setInvites(data);
+        const data = await res.json().catch(() => ([]));
+        setInvites(data || []);
       }
     } catch (err) {
       console.error('Failed to fetch project invites', err);
@@ -51,8 +51,8 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
-          const data = await res.json();
-          setResults(data);
+          const data = await res.json().catch(() => ([]));
+          setResults(data || []);
         }
       } catch (err) {
         console.error('Instant search error', err);
@@ -76,7 +76,7 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
         body: JSON.stringify({ userId })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         addToast({ title: 'Invitation Sent', description: 'Collaborator will receive notification to accept/reject', type: 'success' });
         fetchProjectInvites();
@@ -100,11 +100,11 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
         }
       });
       if (res.ok) {
-        const updatedProject = await res.json();
+        const updatedProject = await res.json().catch(() => ({}));
         setProject(updatedProject);
         addToast({ title: 'Collaborator Removed', type: 'success' });
       } else {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         addToast({ title: 'Error', description: data.error || 'Failed to remove collaborator', type: 'error' });
       }
     } catch (err) {
@@ -113,8 +113,16 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
     }
   };
 
-  // Combine owner and collaborators
-  const allPeople = project ? [project.owner, ...(project.collaborators || []).filter(c => c._id !== project.owner?._id)] : [];
+  // Combine owner and collaborators cleanly by string ID
+  const ownerId = (project?.owner?._id || project?.owner)?.toString();
+  const ownerObj = project?.owner && typeof project.owner === 'object' ? project.owner : null;
+
+  const collaborators = (project?.collaborators || []).filter(c => {
+    const cid = (c._id || c).toString();
+    return cid !== ownerId;
+  });
+
+  const allPeople = ownerObj ? [ownerObj, ...collaborators] : collaborators;
 
   return (
     <div className="people-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '2rem' }}>
@@ -142,8 +150,12 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
                 <div style={{ padding: '0.5rem', fontSize: '0.75rem', color: '#888' }}>No users found matching "{query}"</div>
               ) : (
                 results.map(user => {
-                  const isAlreadyCollab = allPeople.some(p => p._id === user._id);
-                  const existingInvite = invites.find(inv => inv.recipient?._id === user._id || inv.recipient === user._id);
+                  const userIdStr = (user._id || user).toString();
+                  const isAlreadyCollab = allPeople.some(p => (p._id || p).toString() === userIdStr);
+                  const existingInvite = invites.find(inv => {
+                    const recId = (inv.recipient?._id || inv.recipient)?.toString();
+                    return recId === userIdStr;
+                  });
                   const isPending = existingInvite?.status === 'pending';
                   const isRejected = existingInvite?.status === 'rejected';
 
@@ -151,7 +163,7 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
                     <div key={user._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
                         <div className="collab-avatar" style={{ margin: 0, width: '1.5rem', height: '1.5rem', fontSize: '0.7rem', flexShrink: 0 }}>
-                          {user.photoURL ? <img src={user.photoURL} alt="Collab" /> : <span>{user.displayName?.charAt(0).toUpperCase()}</span>}
+                          {user.photoURL ? <img src={user.photoURL} alt="Collab" /> : <span>{(user.displayName || 'U').charAt(0).toUpperCase()}</span>}
                         </div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {user.displayName}
@@ -195,28 +207,34 @@ const PeoplePanel = ({ roomId, project, setProject }) => {
 
       <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 1rem 0' }}>Project Members</h3>
       <div className="people-list" style={{ flex: 1, overflowY: 'auto' }}>
-        {allPeople.map(person => (
-          <div key={person._id} className="people-item" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-            <div className="collab-avatar" style={{ margin: 0, width: '2.5rem', height: '2.5rem' }}>
-              {person.photoURL ? <img src={person.photoURL} alt="Avatar" /> : <span>{person.displayName?.charAt(0).toUpperCase()}</span>}
+        {allPeople.map(person => {
+          const personId = (person._id || person).toString();
+          const isPersonOwner = personId === ownerId;
+          const isCurrentDbUser = personId === dbUser?._id?.toString();
+
+          return (
+            <div key={personId} className="people-item" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+              <div className="collab-avatar" style={{ margin: 0, width: '2.5rem', height: '2.5rem' }}>
+                {person.photoURL ? <img src={person.photoURL} alt="Avatar" /> : <span>{(person.displayName || 'U').charAt(0).toUpperCase()}</span>}
+              </div>
+              <div>
+                <div className="people-name" style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                  {person.displayName || (isPersonOwner ? 'Owner' : 'Collaborator')} {isCurrentDbUser && '(You)'}
+                </div>
+                <div className="people-status" style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                  {isPersonOwner ? 'Owner' : 'Collaborator'}
+                </div>
+              </div>
+              {isOwner && !isPersonOwner && (
+                <div style={{ marginLeft: 'auto' }}>
+                  <button onClick={() => setCollabToRemove(personId)} className="icon-btn" style={{ padding: '0.2rem', color: 'var(--danger)' }} title="Remove Collaborator">
+                    <UserMinus size={16} />
+                  </button>
+                </div>
+              )}
             </div>
-            <div>
-              <div className="people-name" style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                {person.displayName} {person._id === dbUser?._id && '(You)'}
-              </div>
-              <div className="people-status" style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                {person._id === project?.owner?._id ? 'Owner' : 'Collaborator'}
-              </div>
-            </div>
-            {isOwner && person._id !== project?.owner?._id && (
-              <div style={{ marginLeft: 'auto' }}>
-                <button onClick={() => setCollabToRemove(person._id)} className="icon-btn" style={{ padding: '0.2rem', color: 'var(--danger)' }} title="Remove Collaborator">
-                  <UserMinus size={16} />
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <ConfirmModal 

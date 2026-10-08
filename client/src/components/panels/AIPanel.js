@@ -68,10 +68,10 @@ const AIPanel = ({ getEditorValue, language }) => {
       });
       
       if (res.ok) {
-        const data = await res.json();
-        setMessages(prev => [...prev, { sender: 'ai', text: data.reply, timestamp: new Date().toISOString() }]);
+        const data = await res.json().catch(() => ({}));
+        setMessages(prev => [...prev, { sender: 'ai', text: data.reply || 'No response', timestamp: new Date().toISOString() }]);
       } else {
-        const errData = await res.json();
+        const errData = await res.json().catch(() => ({}));
         setMessages(prev => [...prev, { sender: 'ai', text: `Error: ${errData.error || 'Request failed'}`, timestamp: new Date().toISOString() }]);
       }
     } catch (error) {

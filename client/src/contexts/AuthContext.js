@@ -5,6 +5,19 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+const parseJsonResponse = async (res) => {
+  try {
+    const text = await res.text();
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch {
+      return { error: text || `Server error (${res.status})` };
+    }
+  } catch {
+    return { error: `Network error (${res.status})` };
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null); // Will hold the token
   const [dbUser, setDbUser] = useState(null); // Will hold the user object
@@ -19,7 +32,7 @@ export const AuthProvider = ({ children }) => {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (res.ok) {
-            const data = await res.json();
+            const data = await parseJsonResponse(res);
             setCurrentUser({ token });
             setDbUser(data);
           } else {
@@ -41,12 +54,11 @@ export const AuthProvider = ({ children }) => {
       body: JSON.stringify({ email, password })
     });
     
+    const data = await parseJsonResponse(res);
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || 'Login failed');
+      throw new Error(data.error || 'Login failed');
     }
     
-    const data = await res.json();
     localStorage.setItem('token', data.token);
     setCurrentUser({ token: data.token });
     setDbUser(data.user);
@@ -59,12 +71,11 @@ export const AuthProvider = ({ children }) => {
       body: JSON.stringify({ email, password, name })
     });
     
+    const data = await parseJsonResponse(res);
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || 'Registration failed');
+      throw new Error(data.error || 'Registration failed');
     }
     
-    const data = await res.json();
     localStorage.setItem('token', data.token);
     setCurrentUser({ token: data.token });
     setDbUser(data.user);
@@ -87,12 +98,15 @@ export const AuthProvider = ({ children }) => {
         })
       });
       
+      const data = await parseJsonResponse(res);
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Google login failed on server');
+        throw new Error(data.error || `Server error (${res.status}): Please check backend URL configuration on Vercel.`);
       }
       
-      const data = await res.json();
+      if (!data.token) {
+        throw new Error('Server did not return authentication token.');
+      }
+
       localStorage.setItem('token', data.token);
       setCurrentUser({ token: data.token });
       setDbUser(data.user);
@@ -112,7 +126,7 @@ export const AuthProvider = ({ children }) => {
       },
       body: JSON.stringify({ displayName, photoURL })
     });
-    const data = await res.json();
+    const data = await parseJsonResponse(res);
     if (!res.ok) {
       const err = new Error(data.error || 'Failed to update profile');
       err.suggestions = data.suggestions;

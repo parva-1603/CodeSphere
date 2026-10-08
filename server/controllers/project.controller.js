@@ -2,6 +2,11 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 
+const getOwnerId = (project) => {
+  if (!project || !project.owner) return null;
+  return (project.owner._id || project.owner).toString();
+};
+
 const createProject = async (req, res) => {
   try {
     const { name, language } = req.body;
@@ -60,8 +65,14 @@ const deleteProject = async (req, res) => {
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     
-    // Only owner can delete
-    if (project.owner.toString() !== req.user.uid) {
+    let ownerId = getOwnerId(project);
+    if (!ownerId) {
+      project.owner = req.user.uid;
+      await project.save();
+      ownerId = req.user.uid;
+    }
+
+    if (ownerId !== req.user.uid) {
       return res.status(403).json({ error: 'Only the project owner can delete this project' });
     }
     
@@ -78,12 +89,18 @@ const addCollaborator = async (req, res) => {
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     
-    // Only owner can send/resend invites
-    if (project.owner.toString() !== req.user.uid) {
+    let ownerId = getOwnerId(project);
+    if (!ownerId) {
+      project.owner = req.user.uid;
+      await project.save();
+      ownerId = req.user.uid;
+    }
+
+    if (ownerId !== req.user.uid) {
       return res.status(403).json({ error: 'Only the project owner can invite collaborators' });
     }
     
-    if (project.collaborators.some(id => id.toString() === userId)) {
+    if (project.collaborators.some(id => (id._id || id).toString() === userId)) {
       return res.status(400).json({ error: 'User is already a collaborator' });
     }
 
@@ -130,15 +147,22 @@ const removeCollaborator = async (req, res) => {
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     
-    if (project.owner.toString() !== req.user.uid) {
+    let ownerId = getOwnerId(project);
+    if (!ownerId) {
+      project.owner = req.user.uid;
+      await project.save();
+      ownerId = req.user.uid;
+    }
+
+    if (ownerId !== req.user.uid) {
       return res.status(403).json({ error: 'Only the project owner can remove collaborators' });
     }
     
-    if (project.owner.toString() === userId) {
+    if (ownerId === userId) {
       return res.status(400).json({ error: 'Cannot remove the owner from the project' });
     }
 
-    project.collaborators = project.collaborators.filter(id => id.toString() !== userId);
+    project.collaborators = project.collaborators.filter(id => (id._id || id).toString() !== userId);
     await project.save();
     
     const updatedProject = await Project.findById(req.params.id)

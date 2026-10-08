@@ -35,7 +35,9 @@ const respondToNotification = async (req, res) => {
       // Add recipient to project collaborators if not present
       const project = await Project.findById(notification.project);
       if (project) {
-        if (!project.collaborators.includes(notification.recipient)) {
+        const recipientId = notification.recipient.toString();
+        const hasCollab = project.collaborators.some(c => (c._id || c).toString() === recipientId);
+        if (!hasCollab) {
           project.collaborators.push(notification.recipient);
           await project.save();
         }

@@ -26,7 +26,7 @@ const SettingsPanel = ({ roomId, project }) => {
         addToast({ title: 'Success', description: 'Project deleted', type: 'success' });
         navigate('/dashboard');
       } else {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         addToast({ title: 'Error', description: data.error || "Failed to delete project", type: 'error' });
       }
     } catch (err) {

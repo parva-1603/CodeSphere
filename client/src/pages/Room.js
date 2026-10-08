@@ -5,7 +5,7 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from '../y-monaco.js';
 import { useAuth } from "../contexts/AuthContext";
-import { ArrowLeft, MessageSquare, Video, Cpu, GitBranch, Users, FileCode, Search, Settings, FileText, Upload, FilePlus, FolderPlus, FolderOpen, Folder, ChevronRight, ChevronDown, Play, TerminalSquare, X, Copy } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Video, Cpu, GitBranch, Users, FileCode, Search, Settings, FileText, Upload, FilePlus, FolderPlus, FolderOpen, Folder, ChevronRight, ChevronDown, Play, TerminalSquare, X, Copy, Trash2 } from 'lucide-react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
@@ -18,6 +18,7 @@ import PeoplePanel from '../components/panels/PeoplePanel';
 import SettingsPanel from '../components/panels/SettingsPanel';
 import AppShell from '../layouts/AppShell';
 import { API_BASE_URL, WS_BASE_URL } from '../config/api';
+import { parseJsonResponse } from '../utils/apiUtils';
 
 const Room = () => {
   const { id: roomId } = useParams();
@@ -188,12 +189,11 @@ const Room = () => {
         const res = await fetch(`${API_BASE_URL}/api/projects/${roomId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        const data = await parseJsonResponse(res);
         if (res.ok) {
-          const data = await res.json();
           setProject(data);
         } else {
-          const errData = await res.json().catch(() => ({}));
-          setError(errData.error || `Project not found or access denied (Status ${res.status})`);
+          setError(data.error || `Project not found or access denied (Status ${res.status})`);
         }
       } catch (error) {
         console.error("Failed to fetch project", error);
@@ -231,10 +231,10 @@ const Room = () => {
       const fileKeys = Array.from(filesMap.keys());
       setFiles([...fileKeys]);
       
-      // If we don't have an active file yet, pick the first one
-      if (fileKeys.length > 0) {
-        setActiveFile(prev => prev ? prev : fileKeys[0]);
-      }
+      setActiveFile(prev => {
+        if (prev && fileKeys.includes(prev)) return prev;
+        return fileKeys.length > 0 ? fileKeys[0] : '';
+      });
     };
 
     filesMap.observe(updateFilesList);
@@ -242,8 +242,12 @@ const Room = () => {
     provider.on('sync', (isSynced) => {
       if (isSynced) {
         const fileKeys = Array.from(filesMap.keys());
-        if (fileKeys.length === 0) {
-          // Initialize default file if room is totally empty
+        const ownerId = (project.owner?._id || project.owner)?.toString();
+        const userId = dbUser?._id?.toString();
+        const isOwner = ownerId && userId && ownerId === userId;
+
+        if (fileKeys.length === 0 && isOwner) {
+          // Initialize default file ONLY if room is totally empty AND current user is project owner
           const ext = project.language === 'javascript' ? 'js' : project.language === 'python' ? 'py' : 'txt';
           const defaultName = `main.${ext}`;
           filesMap.set(defaultName, { type: 'file' });
@@ -261,31 +265,56 @@ const Room = () => {
     };
   }, [project, roomId, dbUser]);
 
-  // Bind Editor whenever activeFile changes
+  const activeFileRef = useRef(activeFile);
   useEffect(() => {
-    if (!activeFile || !editorRef.current || !docRef.current || !providerRef.current) return;
+    activeFileRef.current = activeFile;
+  }, [activeFile]);
+
+  const bindEditor = (filename) => {
+    if (!filename || !editorRef.current || !docRef.current || !providerRef.current) return;
 
     if (bindingRef.current) {
       bindingRef.current.destroy();
+      bindingRef.current = null;
     }
 
-    const type = docRef.current.getText(activeFile);
-    bindingRef.current = new MonacoBinding(
-      type, 
-      editorRef.current.getModel(), 
-      new Set([editorRef.current]), 
-      providerRef.current.awareness
-    );
+    const type = docRef.current.getText(filename);
+    const model = editorRef.current.getModel();
+    if (model) {
+      bindingRef.current = new MonacoBinding(
+        type, 
+        model, 
+        new Set([editorRef.current]), 
+        providerRef.current.awareness
+      );
+    }
+  };
 
+  // Bind Editor whenever activeFile changes
+  useEffect(() => {
+    bindEditor(activeFile);
   }, [activeFile]);
 
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
-    // Force re-evaluation of binding effect
-    setActiveFile(prev => {
-      const temp = prev;
-      return temp;
+    bindEditor(activeFileRef.current);
+
+    editor.onDidChangeModel(() => {
+      bindEditor(activeFileRef.current);
     });
+  };
+
+  const handleDeleteItem = (path) => {
+    if (!docRef.current) return;
+    const filesMap = docRef.current.getMap('files');
+    
+    const keysToDelete = Array.from(filesMap.keys()).filter(k => k === path || k.startsWith(path + '/'));
+    keysToDelete.forEach(k => filesMap.delete(k));
+
+    if (activeFile === path || activeFile.startsWith(path + '/')) {
+      const remaining = Array.from(filesMap.keys()).filter(k => !keysToDelete.includes(k));
+      setActiveFile(remaining.length > 0 ? remaining[0] : '');
+    }
   };
 
   const getActiveDir = () => {
@@ -408,12 +437,11 @@ const Room = () => {
           })
         });
         
+        const data = await parseJsonResponse(res);
         if (res.ok) {
-          const data = await res.json();
           const output = data.output || '\r\n(No output)';
           xtermRef.current?.write(output.replace(/\n/g, '\r\n') + '\r\n');
         } else {
-          const data = await res.json();
           xtermRef.current?.write(`\r\n\x1b[31mError: ${data.error || 'Failed to execute code'}\x1b[0m\r\n`);
         }
         setIsRunning(false);
@@ -539,6 +567,7 @@ const Room = () => {
                   newItem={newItem}
                   setNewItem={setNewItem}
                   handleCreateItem={handleCreateItem}
+                  handleDeleteItem={handleDeleteItem}
                 />
               </div>
             </div>
@@ -795,6 +824,7 @@ const Room = () => {
       {/* Monaco Code Editor */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <Editor
+          path={activeFile || 'default'}
           height="100%"
           language={getLanguageFromExtension(activeFile)}
           theme="vs-dark"
@@ -826,7 +856,7 @@ const TabButton = ({ active, onClick, icon }) => (
 
 export default Room;
 
-const FileTree = ({ filesMapKeys, filesMap, activeFile, setActiveFile, newItem, setNewItem, handleCreateItem }) => {
+const FileTree = ({ filesMapKeys, filesMap, activeFile, setActiveFile, newItem, setNewItem, handleCreateItem, handleDeleteItem }) => {
   if (!filesMap) return null;
 
   // Build tree
@@ -876,15 +906,16 @@ const FileTree = ({ filesMapKeys, filesMap, activeFile, setActiveFile, newItem, 
           return (b.isFolder === a.isFolder ? a.name.localeCompare(b.name) : b.isFolder ? 1 : -1)
         })
         .map(node => (
-          <FileNode key={node.path} node={node} depth={0} activeFile={activeFile} setActiveFile={setActiveFile} setNewItem={setNewItem} handleCreateItem={handleCreateItem} />
+          <FileNode key={node.path} node={node} depth={0} activeFile={activeFile} setActiveFile={setActiveFile} setNewItem={setNewItem} handleCreateItem={handleCreateItem} handleDeleteItem={handleDeleteItem} />
       ))}
     </div>
   );
 };
 
-const FileNode = ({ node, depth, activeFile, setActiveFile, setNewItem, handleCreateItem }) => {
+const FileNode = ({ node, depth, activeFile, setActiveFile, setNewItem, handleCreateItem, handleDeleteItem }) => {
   const [expanded, setExpanded] = useState(true);
   const [inputValue, setInputValue] = useState('');
+  const [isHovered, setIsHovered] = useState(false);
 
   if (node.isInput) {
     return (
@@ -921,24 +952,63 @@ const FileNode = ({ node, depth, activeFile, setActiveFile, setNewItem, handleCr
     <div>
       <div 
         className={`vscode-file ${activeFile === node.path && !node.isFolder ? 'active' : ''}`}
-        style={{ paddingLeft: `${depth * 1 + 0.5}rem` }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justify: 'space-between',
+          flexDirection: 'row',
+          paddingLeft: `${depth * 0.75 + 0.5}rem`,
+          paddingRight: '0.5rem',
+          paddingTop: '0.25rem',
+          paddingBottom: '0.25rem',
+          cursor: 'pointer',
+          borderRadius: '4px',
+          userSelect: 'none'
+        }}
         onClick={() => {
           if (node.isFolder) setExpanded(!expanded);
           else setActiveFile(node.path);
         }}
         title={node.path}
       >
-        <span className="file-icon" style={{ display: 'flex', alignItems: 'center' }}>
-          {node.isFolder ? (
-            expanded ? <ChevronDown size={14} style={{marginRight:'4px'}}/> : <ChevronRight size={14} style={{marginRight:'4px'}}/>
-          ) : (
-            <span style={{width:'18px'}}></span> // placeholder for indent
-          )}
-          {node.isFolder ? <Folder size={14} color="#60a5fa" /> : <FileText size={14} color="#a1a1aa" />}
-        </span>
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '0.25rem' }}>
-          {node.name}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
+          <span className="file-icon" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            {node.isFolder ? (
+              expanded ? <ChevronDown size={14} style={{marginRight:'4px'}}/> : <ChevronRight size={14} style={{marginRight:'4px'}}/>
+            ) : (
+              <span style={{width:'18px'}}></span>
+            )}
+            {node.isFolder ? <Folder size={14} color="#60a5fa" /> : <FileText size={14} color="#a1a1aa" />}
+          </span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '0.4rem', fontSize: '0.85rem' }}>
+            {node.name}
+          </span>
+        </div>
+        {isHovered && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.confirm(`Are you sure you want to delete ${node.name}?`)) {
+                handleDeleteItem(node.path);
+              }
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-tertiary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '2px',
+              borderRadius: '3px'
+            }}
+            title={`Delete ${node.isFolder ? 'folder' : 'file'}`}
+          >
+            <Trash2 size={12} style={{ color: 'var(--danger)' }} />
+          </button>
+        )}
       </div>
       {node.isFolder && expanded && (
         <div>
@@ -949,7 +1019,7 @@ const FileNode = ({ node, depth, activeFile, setActiveFile, setNewItem, handleCr
               return (b.isFolder === a.isFolder ? a.name.localeCompare(b.name) : b.isFolder ? 1 : -1)
             })
             .map(child => (
-              <FileNode key={child.path} node={child} depth={depth + 1} activeFile={activeFile} setActiveFile={setActiveFile} setNewItem={setNewItem} handleCreateItem={handleCreateItem} />
+              <FileNode key={child.path} node={child} depth={depth + 1} activeFile={activeFile} setActiveFile={setActiveFile} setNewItem={setNewItem} handleCreateItem={handleCreateItem} handleDeleteItem={handleDeleteItem} />
           ))}
         </div>
       )}

@@ -69,13 +69,13 @@ const GitHubPanel = ({ getEditorValue, setEditorValue, setMultipleFiles, activeF
         body: JSON.stringify({ owner: parsed.owner, repo: parsed.repo, branch })
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (data.files && setMultipleFiles) {
           setMultipleFiles(data.files);
           addToast({ title: 'Success', description: `Successfully imported ${data.files.length} files from GitHub! Check your Explorer.`, type: 'success' });
         }
       } else {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         addToast({ title: 'Error', description: data.error || 'Failed to pull repo', type: 'error' });
       }
     } catch (err) {
@@ -99,11 +99,11 @@ const GitHubPanel = ({ getEditorValue, setEditorValue, setMultipleFiles, activeF
         body: JSON.stringify({ owner: parsed.owner, repo: parsed.repo, path: filePath, ref: branch })
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         setEditorValue(data.content);
         addToast({ title: 'Success', description: 'File pulled successfully! (Changes synced to all collaborators)', type: 'success' });
       } else {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (data.error && data.error.includes('Not Found')) {
           addToast({ title: 'Error', description: 'File not found on GitHub. Check path and branch.', type: 'error' });
         } else {
@@ -132,7 +132,7 @@ const GitHubPanel = ({ getEditorValue, setEditorValue, setMultipleFiles, activeF
       if (res.ok) {
         addToast({ title: 'Success', description: 'File pushed to GitHub successfully!', type: 'success' });
       } else {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         addToast({ title: 'Error', description: data.error || 'Failed to push file', type: 'error' });
       }
     } catch (err) {

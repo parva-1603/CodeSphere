@@ -20,8 +20,8 @@ const NotificationMenu = ({ onNotificationAction }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        const data = await res.json();
-        setNotifications(data);
+        const data = await res.json().catch(() => ([]));
+        setNotifications(data || []);
       }
     } catch (err) {
       console.error('Failed to fetch notifications', err);
@@ -65,7 +65,7 @@ const NotificationMenu = ({ onNotificationAction }) => {
         fetchNotifications();
         if (onNotificationAction) onNotificationAction();
       } else {
-        const errData = await res.json();
+        const errData = await res.json().catch(() => ({}));
         addToast({ title: 'Error', description: errData.error || 'Action failed', type: 'error' });
       }
     } catch (err) {

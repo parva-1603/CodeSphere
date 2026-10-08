@@ -9,6 +9,7 @@ import { useToast } from '../components/ui/Toast';
 import Button from '../components/ui/Button';
 import NotificationMenu from '../components/ui/NotificationMenu';
 import { API_BASE_URL } from '../config/api';
+import { parseJsonResponse } from '../utils/apiUtils';
 
 /* ── Mono Background ──────────────────────────────────────── */
 const MonoBg = () => (
@@ -86,6 +87,10 @@ const ProjectCard = ({ project, onDelete }) => (
         />
         {project.language}
         <span style={{ color: '#404040', margin: '0 0.25rem' }}>·</span>
+        <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
+          Owner: {project.owner?.displayName || 'Owner'}
+        </span>
+        <span style={{ color: '#404040', margin: '0 0.25rem' }}>·</span>
         <Clock size={10} />
         {timeAgo(project.updatedAt || project.createdAt)}
       </div>
@@ -133,7 +138,12 @@ const Dashboard = () => {
       const res = await fetch(`${API_BASE_URL}/api/projects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) setProjects(await res.json());
+      const data = await parseJsonResponse(res);
+      if (res.ok && Array.isArray(data)) {
+        setProjects(data);
+      } else {
+        setProjects([]);
+      }
     } catch (err) {
       console.error('Failed to fetch projects', err);
     } finally {
@@ -150,15 +160,14 @@ const Dashboard = () => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(newProject)
       });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await parseJsonResponse(res);
+      if (res.ok && data._id) {
         addToast({ title: 'Project created', type: 'success' });
         setProjects(prev => [data, ...prev]);
         setShowModal(false);
         setNewProject({ name: '', language: 'javascript' });
         navigate(`/room/${data._id}`);
       } else {
-        const data = await res.json().catch(() => ({}));
         addToast({ title: 'Error', description: data.error || 'Failed to create project', type: 'error' });
       }
     } catch (err) {
