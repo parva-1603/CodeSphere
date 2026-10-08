@@ -228,37 +228,44 @@ const Room = () => {
     const filesMap = doc.getMap('files');
 
     const updateFilesList = () => {
-      const fileKeys = Array.from(filesMap.keys());
-      setFiles([...fileKeys]);
-      
-      setActiveFile(prev => {
-        if (prev && fileKeys.includes(prev)) return prev;
-        return fileKeys.length > 0 ? fileKeys[0] : '';
-      });
+      try {
+        const fileKeys = Array.from(filesMap.keys());
+        setFiles([...fileKeys]);
+        setActiveFile(prev => {
+          if (prev && fileKeys.includes(prev)) return prev;
+          return fileKeys.length > 0 ? fileKeys[0] : '';
+        });
+      } catch (err) {
+        console.warn('[CodeSphere] File list update error:', err.message);
+      }
     };
 
     filesMap.observe(updateFilesList);
 
     provider.on('sync', (isSynced) => {
-      if (isSynced) {
-        const fileKeys = Array.from(filesMap.keys());
-        const ownerId = (project.owner?._id || project.owner)?.toString();
-        const userId = dbUser?._id?.toString();
-        const isOwner = ownerId && userId && ownerId === userId;
+      try {
+        if (isSynced) {
+          const fileKeys = Array.from(filesMap.keys());
+          const ownerId = (project.owner?._id || project.owner)?.toString();
+          const userId = dbUser?._id?.toString();
+          const isOwner = ownerId && userId && ownerId === userId;
 
-        if (fileKeys.length === 0 && isOwner) {
-          // Initialize default file ONLY if room is totally empty AND current user is project owner
-          const ext = project.language === 'javascript' ? 'js' : project.language === 'python' ? 'py' : 'txt';
-          const defaultName = `main.${ext}`;
-          filesMap.set(defaultName, { type: 'file' });
-          setActiveFile(defaultName);
-        } else {
-          updateFilesList();
+          if (fileKeys.length === 0 && isOwner) {
+            const ext = project.language === 'javascript' ? 'js' : project.language === 'python' ? 'py' : 'txt';
+            const defaultName = `main.${ext}`;
+            filesMap.set(defaultName, { type: 'file' });
+            setActiveFile(defaultName);
+          } else {
+            updateFilesList();
+          }
         }
+      } catch (err) {
+        console.warn('[CodeSphere] Sync handler error:', err.message);
       }
     });
 
     return () => {
+      if (bindEditorTimeout.current) clearTimeout(bindEditorTimeout.current);
       if (bindingRef.current) bindingRef.current.destroy();
       provider.disconnect();
       doc.destroy();
@@ -270,24 +277,34 @@ const Room = () => {
     activeFileRef.current = activeFile;
   }, [activeFile]);
 
+  const bindEditorTimeout = useRef(null);
+
   const bindEditor = (filename) => {
     if (!filename || !editorRef.current || !docRef.current || !providerRef.current) return;
 
-    if (bindingRef.current) {
-      bindingRef.current.destroy();
-      bindingRef.current = null;
-    }
-
-    const type = docRef.current.getText(filename);
-    const model = editorRef.current.getModel();
-    if (model) {
-      bindingRef.current = new MonacoBinding(
-        type, 
-        model, 
-        new Set([editorRef.current]), 
-        providerRef.current.awareness
-      );
-    }
+    // Debounce rapid re-binds (e.g. when remote updates arrive during file switch)
+    if (bindEditorTimeout.current) clearTimeout(bindEditorTimeout.current);
+    bindEditorTimeout.current = setTimeout(() => {
+      try {
+        if (bindingRef.current) {
+          bindingRef.current.destroy();
+          bindingRef.current = null;
+        }
+        if (!editorRef.current || !docRef.current || !providerRef.current) return;
+        const type = docRef.current.getText(filename);
+        const model = editorRef.current.getModel();
+        if (model && !model.isDisposed()) {
+          bindingRef.current = new MonacoBinding(
+            type,
+            model,
+            new Set([editorRef.current]),
+            providerRef.current.awareness
+          );
+        }
+      } catch (err) {
+        console.warn('[CodeSphere] MonacoBinding error (harmless during sync):', err.message);
+      }
+    }, 50);
   };
 
   // Bind Editor whenever activeFile changes
