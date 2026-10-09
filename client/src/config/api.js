@@ -18,9 +18,9 @@ if (process.env.NODE_ENV === 'production' && !isLocalhost && !process.env.REACT_
 }
 
 export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (isDevelopment 
-  ? `http://${window.location.hostname}:${SERVER_PORT}`
-  : '');
+  ? (typeof window !== 'undefined' ? `http://${window.location.hostname}:${SERVER_PORT}` : `http://localhost:${SERVER_PORT}`)
+  : 'https://codesphere-x5bs.onrender.com');
 
 export const WS_BASE_URL = process.env.REACT_APP_WS_BASE_URL || (isDevelopment
-  ? `ws://${window.location.hostname}:${SERVER_PORT}`
-  : '');
+  ? (typeof window !== 'undefined' ? `ws://${window.location.hostname}:${SERVER_PORT}` : `ws://localhost:${SERVER_PORT}`)
+  : 'wss://codesphere-x5bs.onrender.com');

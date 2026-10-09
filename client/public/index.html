@@ -13,18 +13,33 @@
         } catch (e) {}
       })();
 
-      // Prevent benign cross-origin / browser extension / ResizeObserver errors from triggering CRA error overlay
+      // Prevent benign cross-origin / browser extension / ResizeObserver / worker errors from triggering CRA error overlay
+      function isBenign(msg, src) {
+        var str = String(msg || '');
+        var file = String(src || '');
+        return str === 'Script error.' ||
+               str.indexOf('ResizeObserver') !== -1 ||
+               str.indexOf('editorWebWorker') !== -1 ||
+               str.indexOf('editorWorkerService') !== -1 ||
+               file.indexOf('editorWebWorker') !== -1;
+      }
       window.addEventListener('error', function(event) {
-        if (event.message === 'Script error.' || (!event.filename && !event.lineno)) {
+        if (isBenign(event.message, event.filename) || (!event.filename && !event.lineno && !event.error)) {
           event.stopImmediatePropagation();
-        }
-        if (event.message && (event.message.indexOf('ResizeObserver') !== -1)) {
-          event.stopImmediatePropagation();
+          event.preventDefault();
         }
       }, true);
+      window.onerror = function(message, source) {
+        if (isBenign(message, source)) {
+          return true;
+        }
+      };
       window.addEventListener('unhandledrejection', function(event) {
-        if (event.reason && (event.reason.message === 'Script error.' || (typeof event.reason === 'string' && event.reason.indexOf('ResizeObserver') !== -1))) {
+        var reason = event.reason;
+        var msg = reason && (reason.message || String(reason));
+        if (isBenign(msg, '')) {
           event.stopImmediatePropagation();
+          event.preventDefault();
         }
       }, true);
     </script>
