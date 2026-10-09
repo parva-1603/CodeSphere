@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "concurrently \"npm run start --prefix server\" \"npm run start --prefix client\"",
+    "start:server": "node server/server.js",
+    "postinstall": "npm install --prefix server",
     "kill-ports": "npx kill-port 3000 5100",
     "fresh": "npm run kill-ports && npm start",
     "build": "npm run build --prefix client",

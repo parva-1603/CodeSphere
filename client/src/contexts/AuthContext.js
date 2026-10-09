@@ -19,8 +19,11 @@ const parseJsonResponse = async (res) => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null); // Will hold the token
-  const [dbUser, setDbUser] = useState(null); // Will hold the user object
+  const [currentUser, setCurrentUser] = useState(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    return token ? { token } : null;
+  });
+  const [dbUser, setDbUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,11 +38,14 @@ export const AuthProvider = ({ children }) => {
             const data = await parseJsonResponse(res);
             setCurrentUser({ token });
             setDbUser(data);
-          } else {
+          } else if (res.status === 401 || res.status === 403) {
+            // Only clear token if server explicitly invalidates authentication
             localStorage.removeItem('token');
+            setCurrentUser(null);
+            setDbUser(null);
           }
         } catch (error) {
-          console.error("Failed to fetch user", error);
+          console.warn("Could not reach backend (server starting or cold-start):", error);
         }
       }
       setLoading(false);

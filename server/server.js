@@ -25,15 +25,29 @@ connectDB();
 
 // Middleware
 const corsOptions = {
-  origin: process.env.CLIENT_URL
-    ? [process.env.CLIENT_URL, 'http://localhost:3000']
-    : true, // allow all in development
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const clean = origin.replace(/\/$/, '');
+    if (
+      clean.endsWith('.vercel.app') || 
+      clean.includes('localhost') || 
+      clean.includes('127.0.0.1') ||
+      (process.env.CLIENT_URL && clean === process.env.CLIENT_URL.replace(/\/$/, ''))
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Health check endpoint for Render / monitoring
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok', time: new Date().toISOString() }));
+app.get('/', (req, res) => res.status(200).json({ message: 'CodeSphere API is running' }));
 
 // Init services
 initSocket(server);
@@ -61,7 +75,7 @@ if (fs.existsSync(buildPath)) {
 
 const PORT = process.env.PORT || 5100;
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
 
