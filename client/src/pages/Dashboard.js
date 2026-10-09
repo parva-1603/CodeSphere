@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Settings, LogOut, Code, Clock, Trash2, Terminal, ArrowRight } from 'lucide-react';
+import { Plus, Settings, LogOut, Code, Clock, Trash2, Terminal, ArrowRight, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/Dialog';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -215,6 +215,27 @@ const Dashboard = () => {
           <span className="dashboard-logo-text">CodeSphere</span>
         </div>
         <div className="dashboard-nav-right">
+          {dbUser?.role === 'admin' && (
+            <Link 
+              to="/admin" 
+              className="btn btn-secondary" 
+              style={{ 
+                padding: '0.35rem 0.75rem', 
+                fontSize: '0.75rem', 
+                gap: '0.4rem', 
+                borderRadius: 2,
+                border: '1px solid rgba(255,170,0,0.3)',
+                color: '#ffaa00',
+                background: 'rgba(255,170,0,0.08)',
+                display: 'flex',
+                alignItems: 'center'
+              }} 
+              title="Admin Control Center"
+            >
+              <ShieldAlert size={13} color="#ffaa00" />
+              <span>Admin Panel</span>
+            </Link>
+          )}
           <NotificationMenu onNotificationAction={fetchProjects} />
           <Link to="/settings" className="btn-icon" title="Settings"><Settings size={14} /></Link>
           <button className="btn-icon" onClick={handleLogout} title="Sign out"><LogOut size={14} /></button>
@@ -238,7 +259,23 @@ const Dashboard = () => {
         <div className="dashboard-top">
           <div>
             <p className="dashboard-greeting">{greeting()},</p>
-            <h1 className="dashboard-title">{displayName}</h1>
+            <h1 className="dashboard-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {displayName}
+              {dbUser?.role === 'admin' && (
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontFamily: "'Space Mono', monospace",
+                  padding: '2px 8px',
+                  borderRadius: 3,
+                  background: 'rgba(255,170,0,0.15)',
+                  color: '#ffaa00',
+                  border: '1px solid rgba(255,170,0,0.3)',
+                  fontWeight: 700
+                }}>
+                  ADMIN
+                </span>
+              )}
+            </h1>
             <p className="dashboard-subtitle">
               {projects.length === 0 ? '// no projects yet' : `// ${projects.length} project${projects.length !== 1 ? 's' : ''}`}
             </p>

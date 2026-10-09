@@ -12,6 +12,21 @@
           document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
         } catch (e) {}
       })();
+
+      // Prevent benign cross-origin / browser extension / ResizeObserver errors from triggering CRA error overlay
+      window.addEventListener('error', function(event) {
+        if (event.message === 'Script error.' || (!event.filename && !event.lineno)) {
+          event.stopImmediatePropagation();
+        }
+        if (event.message && (event.message.indexOf('ResizeObserver') !== -1)) {
+          event.stopImmediatePropagation();
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && (event.reason.message === 'Script error.' || (typeof event.reason === 'string' && event.reason.indexOf('ResizeObserver') !== -1))) {
+          event.stopImmediatePropagation();
+        }
+      }, true);
     </script>
   </head>
   <body>

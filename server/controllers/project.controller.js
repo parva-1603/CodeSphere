@@ -72,8 +72,11 @@ const deleteProject = async (req, res) => {
       ownerId = req.user.uid;
     }
 
-    if (ownerId !== req.user.uid) {
-      return res.status(403).json({ error: 'Only the project owner can delete this project' });
+    const currentUser = await User.findById(req.user.uid);
+    const isAdmin = currentUser && currentUser.role === 'admin';
+
+    if (ownerId !== req.user.uid && !isAdmin) {
+      return res.status(403).json({ error: 'Only the project owner or an admin can delete this project' });
     }
     
     await Project.findByIdAndDelete(req.params.id);

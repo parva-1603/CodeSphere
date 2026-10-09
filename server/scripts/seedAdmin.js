@@ -24,18 +24,20 @@ const seedAdmin = async () => {
 
     if (user) {
       user.password = hashedPassword;
-      user.displayName = 'Parva (Admin)';
+      user.displayName = 'Parva';
+      user.role = 'admin';
       await user.save();
-      console.log('Updated Admin account for parva@gmail.com successfully.');
+      console.log('Updated Admin account with role: admin for parva@gmail.com successfully.');
     } else {
       user = new User({
         email,
         password: hashedPassword,
         displayName: 'Parva (Admin)',
+        role: 'admin',
         photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=Parva`
       });
       await user.save();
-      console.log('Created new Admin account for parva@gmail.com successfully.');
+      console.log('Created new Admin account with role: admin for parva@gmail.com successfully.');
     }
 
     await mongoose.connection.close();

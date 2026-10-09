@@ -2,10 +2,12 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
+const { verifyToken, requireRole, requireAdmin } = require('../middleware/auth.middleware');
+
 const JWT_SECRET = process.env.JWT_SECRET || 'codesphere_super_secret_key_2026';
 
-const generateToken = (userId) => {
-  return jwt.sign({ uid: userId }, JWT_SECRET, { expiresIn: '7d' });
+const generateToken = (userId, role = 'user') => {
+  return jwt.sign({ uid: userId, role }, JWT_SECRET, { expiresIn: '7d' });
 };
 
 const ensureUniqueName = async (name) => {
@@ -64,7 +66,7 @@ const register = async (req, res) => {
 
     await user.save();
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.role);
     
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -89,7 +91,7 @@ const login = async (req, res) => {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.role);
 
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -133,7 +135,7 @@ const googleLogin = async (req, res) => {
       await user.save();
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.role);
 
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -144,22 +146,7 @@ const googleLogin = async (req, res) => {
   }
 };
 
-const verifyToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
 
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    req.user = decoded; // { uid: user._id }
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 const getMe = async (req, res) => {
   try {
@@ -262,4 +249,16 @@ const disconnectGithub = async (req, res) => {
   }
 };
 
-module.exports = { register, login, googleLogin, verifyToken, getMe, searchUsers, updateProfile, updateGithub, disconnectGithub };
+module.exports = { 
+  register, 
+  login, 
+  googleLogin, 
+  verifyToken, 
+  requireRole, 
+  requireAdmin, 
+  getMe, 
+  searchUsers, 
+  updateProfile, 
+  updateGithub, 
+  disconnectGithub 
+};

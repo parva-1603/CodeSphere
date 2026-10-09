@@ -5,7 +5,9 @@ import Dashboard from './pages/Dashboard';
 import Room from './pages/Room';
 import Settings from './pages/Settings';
 import UIShowcase from './pages/UIShowcase';
+import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import { SocketProvider } from './contexts/SocketContext';
 import { ToastProvider } from './components/ui/Toast';
 
@@ -22,6 +24,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/room/:id" element={<Room />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           </Route>
         </Route>
       </Routes>

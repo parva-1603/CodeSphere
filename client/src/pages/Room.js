@@ -1,9 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import Editor from '@monaco-editor/react';
+import Editor, { loader } from '@monaco-editor/react';
+import * as monaco from 'monaco-editor';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from '../y-monaco.js';
+
+// Configure Monaco Editor to use local node_modules instead of external jsdelivr CDN
+loader.config({ monaco });
 import { useAuth } from "../contexts/AuthContext";
 import { ArrowLeft, MessageSquare, Video, Cpu, GitBranch, Users, FileCode, Search, Settings, FileText, Upload, FilePlus, FolderPlus, FolderOpen, Folder, ChevronRight, ChevronDown, Play, TerminalSquare, X, Copy, Trash2 } from 'lucide-react';
 import { Terminal } from 'xterm';

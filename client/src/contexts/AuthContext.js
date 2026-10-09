@@ -147,6 +147,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     currentUser,
     dbUser,
+    isAdmin: dbUser?.role === 'admin',
     login,
     register,
     signup: register,
