@@ -1,3 +1,6 @@
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const path = require('path');
 const fs = require('fs');
 
@@ -74,6 +77,14 @@ if (fs.existsSync(buildPath)) {
 }
 
 const PORT = process.env.PORT || 5100;
+
+process.on('uncaughtException', (err) => {
+  console.warn('[Server Uncaught Exception Handled]:', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Server Unhandled Rejection Handled]:', reason);
+});
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);

@@ -2,9 +2,19 @@ const { setupWSConnection } = require('y-websocket/bin/utils');
 const WebSocket = require('ws');
 
 const initYjs = (server) => {
-  const wss = new WebSocket.Server({ noServer: true });
+  const wss = new WebSocket.Server({ 
+    noServer: true,
+    maxPayload: 100 * 1024 * 1024 
+  });
+
+  wss.on('error', (err) => {
+    console.warn('[Yjs WSS Error]:', err.message);
+  });
 
   wss.on('connection', (conn, req, { docName }) => {
+    conn.on('error', (err) => {
+      console.warn(`[Yjs WS Error in ${docName}]:`, err.message);
+    });
     setupWSConnection(conn, req, { docName });
   });
 

@@ -2,9 +2,20 @@ const { spawn } = require('child_process');
 const WebSocket = require('ws');
 
 const initTerminalSocket = (server) => {
-  const wss = new WebSocket.Server({ noServer: true });
+  const wss = new WebSocket.Server({ 
+    noServer: true,
+    maxPayload: 100 * 1024 * 1024 
+  });
+
+  wss.on('error', (err) => {
+    console.warn('[Terminal WSS Error]:', err.message);
+  });
 
   wss.on('connection', (ws) => {
+    ws.on('error', (err) => {
+      console.warn('[Terminal WS Client Error]:', err.message);
+    });
+
     // Spawn PowerShell with FORCE_COLOR to encourage tools to output ANSI colors
     const shell = spawn('powershell.exe', ['-NoLogo'], {
       cwd: process.cwd(),
@@ -12,19 +23,29 @@ const initTerminalSocket = (server) => {
     });
 
     shell.stdout.on('data', (data) => {
-      ws.send(data.toString());
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data.toString());
+      }
     });
 
     shell.stderr.on('data', (data) => {
-      ws.send(data.toString());
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data.toString());
+      }
     });
 
     ws.on('message', (msg) => {
-      shell.stdin.write(msg);
+      try {
+        shell.stdin.write(msg);
+      } catch (err) {
+        console.warn('[Terminal Stdin Error]:', err.message);
+      }
     });
 
     ws.on('close', () => {
-      shell.kill();
+      try {
+        shell.kill();
+      } catch (e) {}
     });
   });
 
