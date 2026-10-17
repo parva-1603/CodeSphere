@@ -1,14 +1,20 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from '../y-monaco.js';
 import { useAuth } from "../contexts/AuthContext";
-import { ArrowLeft, MessageSquare, Video, Cpu, GitBranch, Users, FileCode, Search, Settings, FileText, Upload, FilePlus, FolderPlus, FolderOpen, Folder, ChevronRight, ChevronDown, Play, TerminalSquare, X, Copy, Trash2 } from 'lucide-react';
+import { 
+  ArrowLeft, MessageSquare, Video, Cpu, GitBranch, Users, FileCode, 
+  Search, Settings, FileText, Upload, FilePlus, FolderPlus, FolderOpen, 
+  Folder, ChevronRight, ChevronDown, Play, TerminalSquare, X, Copy, 
+  Trash2, Loader2, CheckCircle2, AlertCircle, RotateCcw, Sparkles 
+} from 'lucide-react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
+import { useToast } from '../components/ui/Toast';
 
 import ChatPanel from '../components/panels/ChatPanel';
 import CallPanel from '../components/panels/CallPanel';
@@ -20,9 +26,36 @@ import AppShell from '../layouts/AppShell';
 import { API_BASE_URL, WS_BASE_URL } from '../config/api';
 import { parseJsonResponse } from '../utils/apiUtils';
 
+const getDefaultFilename = (lang) => {
+  const l = (lang || '').toLowerCase();
+  if (l === 'c') return 'main.c';
+  if (l === 'cpp' || l === 'c++') return 'main.cpp';
+  if (l === 'python' || l === 'py') return 'main.py';
+  if (l === 'java') return 'Main.java';
+  return 'main.js';
+};
+
+const getDefaultStarterCode = (lang) => {
+  const l = (lang || '').toLowerCase();
+  if (l === 'c') {
+    return '#include <stdio.h>\n\nint main() {\n    printf("Hello from CodeSphere!\\n");\n    return 0;\n}\n';
+  }
+  if (l === 'cpp' || l === 'c++') {
+    return '#include <iostream>\n\nint main() {\n    std::cout << "Hello from CodeSphere!" << std::endl;\n    return 0;\n}\n';
+  }
+  if (l === 'python' || l === 'py') {
+    return 'print("Hello from CodeSphere!")\n';
+  }
+  if (l === 'java') {
+    return 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello from CodeSphere!");\n    }\n}\n';
+  }
+  return 'console.log("Hello from CodeSphere!");\n';
+};
+
 const Room = () => {
   const { id: roomId } = useParams();
   const { currentUser, dbUser, getToken } = useAuth();
+  const { addToast } = useToast();
   const [project, setProject] = useState(null);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('chat');
@@ -36,17 +69,29 @@ const Room = () => {
   const folderInputRef = useRef(null);
   const terminalRef = useRef(null);
   const xtermRef = useRef(null);
+  const fitAddonRef = useRef(null);
   const wsRef = useRef(null);
+  const outputEndRef = useRef(null);
 
   const [files, setFiles] = useState([]);
   const [activeFile, setActiveFile] = useState('');
   const [newItem, setNewItem] = useState(null);
   
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
-  const [terminalOutput, setTerminalOutput] = useState('');
-  const [terminalInput, setTerminalInput] = useState('');
+  const [bottomTab, setBottomTab] = useState('output'); // 'output' | 'terminal'
   const [isRunning, setIsRunning] = useState(false);
+  const [runStatus, setRunStatus] = useState(null); // 'running' | 'success' | 'error' | 'warning'
+  const [executionLogs, setExecutionLogs] = useState([]);
   const [terminalHeight, setTerminalHeight] = useState(35);
+
+  const activeFileRef = useRef(activeFile);
+  activeFileRef.current = activeFile;
+  const filesRef = useRef(files);
+  filesRef.current = files;
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  const isRunningRef = useRef(isRunning);
+  isRunningRef.current = isRunning;
 
   const startResize = (e) => {
     e.preventDefault();
@@ -107,6 +152,7 @@ const Room = () => {
         cursorBlink: true
       });
       const fitAddon = new FitAddon();
+      fitAddonRef.current = fitAddon;
       term.loadAddon(fitAddon);
       
       term.open(terminalRef.current);
@@ -251,9 +297,13 @@ const Room = () => {
           const isOwner = ownerId && userId && ownerId === userId;
 
           if (fileKeys.length === 0 && isOwner) {
-            const ext = project.language === 'javascript' ? 'js' : project.language === 'python' ? 'py' : 'txt';
-            const defaultName = `main.${ext}`;
+            const defaultName = getDefaultFilename(project.language);
+            const starterCode = getDefaultStarterCode(project.language);
             filesMap.set(defaultName, { type: 'file' });
+            const ytext = doc.getText(defaultName);
+            if (ytext.toString().length === 0) {
+              ytext.insert(0, starterCode);
+            }
             setActiveFile(defaultName);
           } else {
             updateFilesList();
@@ -316,6 +366,14 @@ const Room = () => {
     editor.onDidChangeModel(() => {
       bindEditor();
     });
+
+    try {
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+        runCode();
+      });
+    } catch (e) {
+      console.warn('Failed to bind Ctrl+Enter command in editor:', e);
+    }
   };
 
   const handleDeleteItem = (path) => {
@@ -415,56 +473,238 @@ const Room = () => {
     });
   };
 
-  const runCode = async () => {
-    if (!activeFile) return;
-    setIsTerminalOpen(true);
-    setIsRunning(true);
+  const detectLanguageToRun = (fileName, codeContent) => {
+    const ext = (fileName || '').split('.').pop().toLowerCase();
+    if (ext === 'c') return 'c';
+    if (ext === 'cpp' || ext === 'cc' || ext === 'cxx' || ext === 'hpp') return 'cpp';
+    if (ext === 'py') return 'python';
+    if (ext === 'js' || ext === 'jsx' || ext === 'mjs' || ext === 'cjs') return 'javascript';
+    if (ext === 'ts' || ext === 'tsx') return 'javascript';
+    if (ext === 'java') return 'java';
 
-    const code = docRef.current?.getText(activeFile).toString() || '';
-    const ext = activeFile.split('.').pop();
-    let lang = 'javascript';
-    let version = '18.15.0';
+    // Heuristic based on code content
+    const trimmed = (codeContent || '').trim();
+    if (trimmed.includes('#include <stdio.h>') || (trimmed.includes('int main') && !trimmed.includes('cout'))) return 'c';
+    if (trimmed.includes('#include <iostream>') || trimmed.includes('std::cout')) return 'cpp';
+    if (trimmed.includes('def ') || trimmed.includes('print(') || trimmed.includes('import sys')) return 'python';
+    if (trimmed.includes('public class ') || trimmed.includes('System.out.println')) return 'java';
+
+    return (projectRef.current?.language || 'javascript').toLowerCase();
+  };
+
+  const runCode = useCallback(async () => {
+    if (isRunningRef.current) return;
+
+    let targetFile = activeFileRef.current;
     
-    if (ext === 'py') {
-      lang = 'python';
-      version = '3.10.0';
-    } else if (ext === 'cpp' || ext === 'c') {
-      lang = 'cpp';
-      version = '10.2.0';
+    // Auto-select or create file if none is active
+    if (!targetFile) {
+      const currentFiles = filesRef.current || [];
+      const nonFolders = currentFiles.filter(f => {
+        const item = docRef.current?.getMap('files')?.get(f);
+        return !item || item.type !== 'folder';
+      });
+
+      if (nonFolders.length > 0) {
+        targetFile = nonFolders[0];
+        setActiveFile(targetFile);
+      } else {
+        const projLang = projectRef.current?.language;
+        targetFile = getDefaultFilename(projLang);
+        const starter = getDefaultStarterCode(projLang);
+        if (docRef.current) {
+          docRef.current.getMap('files').set(targetFile, { type: 'file' });
+          const ytext = docRef.current.getText(targetFile);
+          if (ytext.toString().length === 0) {
+            ytext.insert(0, starter);
+          }
+        }
+        setActiveFile(targetFile);
+      }
     }
+
+    // Open bottom panel and switch to Output console
+    setIsTerminalOpen(true);
+    setBottomTab('output');
+    setIsRunning(true);
+    setRunStatus('running');
+
+    // Retrieve latest code: prefer active Monaco editor, fallback to Yjs doc
+    let code = '';
+    if (editorRef.current) {
+      try {
+        code = editorRef.current.getValue() || '';
+      } catch (e) {}
+    }
+    if (!code && docRef.current && targetFile) {
+      try {
+        code = docRef.current.getText(targetFile).toString() || '';
+      } catch (e) {}
+    }
+
+    const lang = detectLanguageToRun(targetFile, code);
+
+    // If completely blank, alert user gracefully
+    if (!code.trim()) {
+      setIsRunning(false);
+      setRunStatus('warning');
+      const emptyMsg = `⚠️ File "${targetFile}" is empty. Please write some code before running.`;
+      setExecutionLogs(prev => [
+        ...prev,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          file: targetFile,
+          language: lang,
+          status: 'warning',
+          output: emptyMsg,
+          duration: 0
+        }
+      ]);
+      addToast({
+        title: 'Empty File',
+        description: `Please enter code in ${targetFile} before running.`,
+        type: 'warning'
+      });
+      return;
+    }
+
+    addToast({
+      title: 'Running Code',
+      description: `Executing ${targetFile} (${lang.toUpperCase()})...`,
+      type: 'info'
+    });
+
+    const startTime = performance.now();
 
     try {
-      // Small delay to ensure xterm is initialized if terminal was just opened
-      setTimeout(async () => {
-        xtermRef.current?.write('\r\n\x1b[32m$ Executing script locally...\x1b[0m\r\n');
-        
-        const token = getToken();
-        const res = await fetch(`${API_BASE_URL}/api/run`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
+      const token = getToken();
+      const res = await fetch(`${API_BASE_URL}/api/run`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          language: lang,
+          code: code
+        })
+      });
+
+      const data = await parseJsonResponse(res);
+      const elapsed = Math.round(performance.now() - startTime);
+
+      if (res.ok) {
+        const output = data.output || '(No output)';
+        const isSuccess = data.success !== false && (data.exitCode === undefined || data.exitCode === 0);
+        setRunStatus(isSuccess ? 'success' : 'error');
+
+        setExecutionLogs(prev => [
+          ...prev,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            file: targetFile,
             language: lang,
-            code: code
-          })
-        });
-        
-        const data = await parseJsonResponse(res);
-        if (res.ok) {
-          const output = data.output || '\r\n(No output)';
-          xtermRef.current?.write(output.replace(/\n/g, '\r\n') + '\r\n');
-        } else {
-          xtermRef.current?.write(`\r\n\x1b[31mError: ${data.error || 'Failed to execute code'}\x1b[0m\r\n`);
+            status: isSuccess ? 'success' : 'error',
+            output: output,
+            duration: data.duration || elapsed,
+            exitCode: data.exitCode
+          }
+        ]);
+
+        if (xtermRef.current) {
+          xtermRef.current.write(`\r\n\x1b[32m=== Run: ${targetFile} (${lang}) ===\x1b[0m\r\n`);
+          xtermRef.current.write(output.replace(/\n/g, '\r\n') + '\r\n');
         }
-        setIsRunning(false);
-      }, 100);
+
+        if (isSuccess) {
+          addToast({
+            title: 'Run Succeeded',
+            description: `${targetFile} completed in ${data.duration || elapsed}ms`,
+            type: 'success'
+          });
+        } else {
+          addToast({
+            title: 'Execution Error',
+            description: `Check the Run Output console below for details.`,
+            type: 'error'
+          });
+        }
+      } else {
+        const errorMsg = data.error || `Server error (${res.status})`;
+        setRunStatus('error');
+        setExecutionLogs(prev => [
+          ...prev,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            file: targetFile,
+            language: lang,
+            status: 'error',
+            output: `❌ Server Error: ${errorMsg}`,
+            duration: elapsed
+          }
+        ]);
+        if (xtermRef.current) {
+          xtermRef.current.write(`\r\n\x1b[31mError: ${errorMsg}\x1b[0m\r\n`);
+        }
+        addToast({
+          title: 'Execution Failed',
+          description: errorMsg,
+          type: 'error'
+        });
+      }
     } catch (err) {
-      xtermRef.current?.write(`\r\n\x1b[31mError: ${err.message}\x1b[0m\r\n`);
+      const elapsed = Math.round(performance.now() - startTime);
+      setRunStatus('error');
+      setExecutionLogs(prev => [
+        ...prev,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          file: targetFile,
+          language: lang,
+          status: 'error',
+          output: `❌ Network Error: Could not connect to runner service (${err.message})`,
+          duration: elapsed
+        }
+      ]);
+      if (xtermRef.current) {
+        xtermRef.current.write(`\r\n\x1b[31mNetwork Error: ${err.message}\x1b[0m\r\n`);
+      }
+      addToast({
+        title: 'Network Error',
+        description: `Could not reach server: ${err.message}`,
+        type: 'error'
+      });
+    } finally {
       setIsRunning(false);
     }
-  };
+  }, [getToken, addToast]);
+
+  useEffect(() => {
+    if (bottomTab === 'output' && outputEndRef.current) {
+      outputEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [executionLogs, isRunning, bottomTab]);
+
+  useEffect(() => {
+    if (bottomTab === 'terminal' && fitAddonRef.current) {
+      setTimeout(() => {
+        try {
+          fitAddonRef.current?.fit();
+        } catch (e) {}
+      }, 50);
+    }
+  }, [bottomTab]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        runCode();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [runCode]);
 
   const getLanguageFromExtension = (filename) => {
     if (!filename) return 'plaintext';
@@ -472,7 +712,7 @@ const Room = () => {
     const map = {
       'js': 'javascript', 'jsx': 'javascript', 'ts': 'typescript', 'tsx': 'typescript',
       'py': 'python', 'html': 'html', 'css': 'css', 'json': 'json', 'md': 'markdown',
-      'c': 'c', 'cpp': 'cpp', 'java': 'java', 'go': 'go', 'rs': 'rust',
+      'c': 'c', 'cpp': 'cpp', 'cc': 'cpp', 'h': 'c', 'hpp': 'cpp', 'java': 'java', 'go': 'go', 'rs': 'rust',
       'sh': 'shell', 'bash': 'shell', 'yml': 'yaml', 'yaml': 'yaml'
     };
     return map[ext] || 'plaintext';
@@ -748,18 +988,191 @@ const Room = () => {
       bottomPanel={
         isTerminalOpen ? (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-surface)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <TerminalSquare size={13} style={{ color: 'var(--accent)' }} />
-                <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>INTEGRATED TERMINAL</span>
+            {/* Bottom Panel Tab Header */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              padding: '4px 12px', 
+              borderBottom: '1px solid var(--border-subtle)', 
+              backgroundColor: 'var(--bg-subtle)',
+              minHeight: '36px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button
+                  onClick={() => setBottomTab('output')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: bottomTab === 'output' ? 'var(--bg-elevated)' : 'transparent',
+                    color: bottomTab === 'output' ? 'var(--accent)' : 'var(--text-secondary)'
+                  }}
+                  title="View Execution Output"
+                >
+                  <Play size={11} fill={bottomTab === 'output' ? 'var(--accent)' : 'none'} />
+                  <span>RUN OUTPUT</span>
+                  {isRunning && (
+                    <span style={{ 
+                      width: '6px', 
+                      height: '6px', 
+                      borderRadius: '50%', 
+                      backgroundColor: '#4ade80',
+                      display: 'inline-block',
+                      animation: 'pulse 1.5s infinite'
+                    }} />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setBottomTab('terminal');
+                    setTimeout(() => {
+                      try { fitAddonRef.current?.fit(); } catch (e) {}
+                    }, 50);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: bottomTab === 'terminal' ? 'var(--bg-elevated)' : 'transparent',
+                    color: bottomTab === 'terminal' ? 'var(--accent)' : 'var(--text-secondary)'
+                  }}
+                  title="Interactive Terminal"
+                >
+                  <TerminalSquare size={13} style={{ color: 'var(--accent)' }} />
+                  <span>TERMINAL</span>
+                </button>
               </div>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                <button onClick={() => setIsTerminalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '2px', borderRadius: '4px' }} title="Close Terminal">
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {bottomTab === 'output' && executionLogs.length > 0 && (
+                  <button 
+                    onClick={() => setExecutionLogs([])} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: 'var(--text-tertiary)', 
+                      cursor: 'pointer', 
+                      padding: '3px 6px', 
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px'
+                    }} 
+                    title="Clear Output"
+                  >
+                    <Trash2 size={12} />
+                    <span>Clear</span>
+                  </button>
+                )}
+                <button 
+                  onClick={() => setIsTerminalOpen(false)} 
+                  style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    color: 'var(--text-tertiary)', 
+                    cursor: 'pointer', 
+                    padding: '3px', 
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }} 
+                  title="Close Panel"
+                >
                   <X size={14} />
                 </button>
               </div>
             </div>
-            <div ref={terminalRef} style={{ flex: 1, padding: '4px', overflow: 'hidden' }} />
+
+            {/* Bottom Panel Views */}
+            <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+              {/* Output Tab View */}
+              <div style={{ 
+                position: 'absolute', 
+                inset: 0, 
+                display: bottomTab === 'output' ? 'flex' : 'none', 
+                flexDirection: 'column',
+                backgroundColor: '#101014',
+                padding: '12px 16px',
+                overflowY: 'auto',
+                fontFamily: "'JetBrains Mono', 'Menlo', 'Monaco', monospace",
+                fontSize: '13px'
+              }}>
+                {executionLogs.length === 0 && !isRunning ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-tertiary)', gap: '8px' }}>
+                    <Play size={24} style={{ opacity: 0.3 }} />
+                    <span style={{ fontSize: '13px' }}>Click <strong>Run</strong> or press <strong>Ctrl+Enter</strong> to execute your code</span>
+                  </div>
+                ) : (
+                  <>
+                    {executionLogs.map((log, idx) => (
+                      <div key={idx} style={{ marginBottom: '16px', borderBottom: idx < executionLogs.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', paddingBottom: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', color: 'var(--text-tertiary)', fontSize: '11px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ 
+                              color: log.status === 'success' ? '#4ade80' : log.status === 'warning' ? '#facc15' : '#f87171', 
+                              fontWeight: 700 
+                            }}>
+                              {log.status === 'success' ? '✓ EXECUTED' : log.status === 'warning' ? '⚠ NOTICE' : '✗ FAILED'}
+                            </span>
+                            <span>{log.file} ({log.language.toUpperCase()})</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            {log.duration !== undefined && <span>{log.duration}ms</span>}
+                            <span>{log.timestamp}</span>
+                          </div>
+                        </div>
+                        <pre style={{ 
+                          margin: 0, 
+                          whiteSpace: 'pre-wrap', 
+                          wordBreak: 'break-word', 
+                          color: log.status === 'error' ? '#fca5a5' : '#e4e4e7',
+                          lineHeight: '1.5'
+                        }}>
+                          {log.output}
+                        </pre>
+                      </div>
+                    ))}
+
+                    {isRunning && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4ade80', fontSize: '12px', padding: '6px 0' }}>
+                        <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                        <span>Compiling & running code...</span>
+                      </div>
+                    )}
+                    <div ref={outputEndRef} />
+                  </>
+                )}
+              </div>
+
+              {/* Terminal Tab View */}
+              <div 
+                ref={terminalRef} 
+                style={{ 
+                  position: 'absolute', 
+                  inset: 0, 
+                  display: bottomTab === 'terminal' ? 'block' : 'none', 
+                  padding: '4px', 
+                  overflow: 'hidden' 
+                }} 
+              />
+            </div>
           </div>
         ) : null
       }
@@ -776,20 +1189,25 @@ const Room = () => {
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px', 
-              padding: '0.3rem 0.65rem', 
-              backgroundColor: isRunning ? 'var(--bg-elevated)' : 'rgba(34, 197, 94, 0.15)', 
+              padding: '0.32rem 0.75rem', 
+              backgroundColor: isRunning ? 'var(--bg-elevated)' : 'rgba(34, 197, 94, 0.18)', 
               color: isRunning ? 'var(--text-tertiary)' : '#4ade80', 
-              border: '1px solid rgba(34, 197, 94, 0.3)', 
+              border: '1px solid rgba(34, 197, 94, 0.35)', 
               borderRadius: 'var(--radius-sm)', 
               cursor: isRunning ? 'not-allowed' : 'pointer',
               fontSize: '12px',
-              fontWeight: 600
+              fontWeight: 600,
+              boxShadow: isRunning ? 'none' : '0 2px 6px rgba(34, 197, 94, 0.12)'
             }} 
             onClick={runCode} 
             disabled={isRunning} 
             title="Run Code (Ctrl+Enter)"
           >
-            <Play size={13} fill="#4ade80" />
+            {isRunning ? (
+              <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+            ) : (
+              <Play size={13} fill="#4ade80" />
+            )}
             <span>{isRunning ? 'Running...' : 'Run'}</span>
           </button>
 
@@ -806,7 +1224,17 @@ const Room = () => {
               gap: '4px',
               fontSize: '12px'
             }} 
-            onClick={() => setIsTerminalOpen(!isTerminalOpen)} 
+            onClick={() => {
+              if (!isTerminalOpen) {
+                setIsTerminalOpen(true);
+                setBottomTab('terminal');
+                setTimeout(() => {
+                  try { fitAddonRef.current?.fit(); } catch (e) {}
+                }, 50);
+              } else {
+                setIsTerminalOpen(false);
+              }
+            }} 
             title="Toggle Integrated Terminal"
           >
             <TerminalSquare size={14} />
